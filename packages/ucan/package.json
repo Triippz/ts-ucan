@@ -1,0 +1,28 @@
+{
+  "name": "@ucans/ucan",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@ipld/dag-cbor": "^9",
+    "@ucans/varsig": "file:../varsig",
+    "multiformats": "^13"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.0",
+    "typescript": "^5",
+    "vitest": "^3"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  }
+}
