@@ -1,75 +1,31 @@
 /**
  * Policy module (Lane P).
  *
- * Placeholder file created by Lane C.
- * To be implemented by Lane P (delegation/policy.rs).
+ * Port of delegation/policy.rs.
  */
 
-import type { Ipld } from "../../ipld.js";
+// Re-export from predicate.ts
+export type { Predicate } from "./predicate.js";
+export { runPredicate, glob, predicateToIpld, ipldToPredicate, RunError, FromIpldError } from "./predicate.js";
 
-export type Predicate = any;
-export type Filter = any;
-export type Selector = any;
-export type SelectorError = any;
-export type Select<T = any> = any;
-export type Selectable<T = any> = any;
+// Re-export from selector/index.ts
+export { Selector, parseSelector } from "./selector/index.js";
+export type { SelectorErrorReason } from "./selector/error.js";
 
-export function runPredicate(p: Predicate, data: Ipld): boolean {
-  throw new Error("Not yet implemented");
-}
+// Re-export from selector/select.ts
+export type { Select } from "./selector/select.js";
+export { SelectorError, resolveSliceIndices, selectorErrorToIpld, ipldToSelectorError } from "./selector/select.js";
 
-export function glob(input: string, pattern: string): boolean {
-  throw new Error("Not yet implemented");
-}
+// Re-export from selector/selectable.ts
+export type { Selectable } from "./selector/selectable.js";
+export { selectIpld, selectNumber, selectString, selectCollection } from "./selector/selectable.js";
 
-export function predicateToIpld(p: Predicate): Ipld {
-  throw new Error("Not yet implemented");
-}
+// Re-export from selector/filter.ts
+export type { Filter } from "./selector/filter.js";
+export { filterToString, parseFilter, filterIsIn, filterIsDotField, filterToIpld, ipldToFilter } from "./selector/filter.js";
 
-export function ipldToPredicate(i: Ipld): Predicate {
-  throw new Error("Not yet implemented");
-}
+// Re-export from selector/error.ts
+export { ParseError, parseErrorToIpld, ipldToParseError, selectorErrorReasonToIpld, ipldToSelectorErrorReason } from "./selector/error.js";
 
-export class RunError extends Error {
-  constructor(readonly reason: string) {
-    super(`run error: ${reason}`);
-    this.name = "RunError";
-  }
-}
-
-export class FromIpldError extends Error {
-  constructor(readonly reason: string) {
-    super(`from ipld error: ${reason}`);
-    this.name = "FromIpldError";
-  }
-}
-
-export function filterToString(f: Filter): string {
-  throw new Error("Not yet implemented");
-}
-
-export function parseFilter(s: string): Filter {
-  throw new Error("Not yet implemented");
-}
-
-export function filterIsIn(a: Filter, b: Filter): boolean {
-  throw new Error("Not yet implemented");
-}
-
-export function filterIsDotField(f: Filter): boolean {
-  throw new Error("Not yet implemented");
-}
-
-export function filterToIpld(f: Filter): Ipld {
-  throw new Error("Not yet implemented");
-}
-
-export function ipldToFilter(i: Ipld): Filter {
-  throw new Error("Not yet implemented");
-}
-
-export class filterParseError extends Error {
-  constructor(readonly reason: string) {
-    super(`filter parse error: ${reason}`);
-  }
-}
+// filterParseError alias for barrel compatibility (Lane C's barrel exports this name)
+export { ParseError as filterParseError } from "./selector/error.js";
