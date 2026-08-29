@@ -13,7 +13,8 @@
   },
   "scripts": {
     "build": "tsc -p packages/varsig && tsc -p packages/ucan",
-    "test": "npm --workspace=@ucans/varsig test && npm --workspace=@ucans/ucan test"
+    "test": "npm --workspace=@ucans/varsig test && npm --workspace=@ucans/ucan test",
+    "prepare": "git config core.hooksPath .githooks"
   },
   "private": true,
   "workspaces": [
@@ -23,5 +24,6 @@
     "@noble/hashes": "^1.8.0",
     "typescript": "^5",
     "vitest": "^3"
-  }
+  },
+  "type": "module"
 }

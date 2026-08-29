@@ -4,4 +4,4 @@ dist/
 *.tsbuildinfo
 .idea/
 .vs_code/
-.pi
+.pi.pi/
