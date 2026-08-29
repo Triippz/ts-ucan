@@ -13,7 +13,7 @@
   },
   "scripts": {
     "build": "tsc -p packages/varsig && tsc -p packages/ucan",
-    "test": "vitest run --workspace packages"
+    "test": "npm --workspace=@ucans/varsig test && npm --workspace=@ucans/ucan test"
   },
   "private": true,
   "workspaces": [
