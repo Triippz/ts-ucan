@@ -127,3 +127,23 @@ export {
 export type { InvocationPayload } from "./invocation/index.js";
 export { Invocation, invocationPayloadTag, invocationPayloadToIpld, ipldToInvocationPayload, invocationPayloadToCid, check, syntaticChecks, CheckFailed, StoredCheckError } from "./invocation/index.js";
 export { InvocationBuilder } from "./invocation/builder.js";
+
+// Revocation
+export {
+  REVOKE_COMMAND,
+  revoke,
+  MapRevocationStore,
+  RevokedError,
+  checkWithRevocations,
+} from "./revocation/index.js";
+export type { RevocationStore } from "./revocation/index.js";
+
+// Container
+export {
+  ContainerHeader,
+  containerToBytes,
+  containerFromBytes,
+  containerToBase64StdPadding,
+  containerToBase64Url,
+} from "./container/index.js";
+export type { CompressionAlgorithm, BaseEncoding, ContainerOptions } from "./container/index.js";
