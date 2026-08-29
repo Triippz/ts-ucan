@@ -5,173 +5,207 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { InvocationBuilder } from "../src/index.js";
+import { DagCborCodec, Varsig, ed25519TryFromTags } from "@marktripoli/varsig";
+import type { Ipld } from "../src/ipld.js";
+import { Invocation, InvocationBuilder } from "../src/index.js";
 import { Ed25519Signer, Ed25519Did } from "../src/did.js";
-import { ipldFromDagCbor } from "../src/ipld.js";
+import { ipldFromDagCbor, ipldToDagCbor } from "../src/ipld.js";
+import { Nonce } from "../src/crypto/nonce.js";
+import generatedFixture from "./fixtures/generated.json" assert { type: "json" };
+
+function did(seed: number): Ed25519Did {
+  return new Ed25519Signer(new Uint8Array(32).fill(seed)).did;
+}
+
+function envelopeParts(bytes: Uint8Array): { signature: Uint8Array; sigPayload: Map<string, Ipld> } {
+  const parsed = ipldFromDagCbor(bytes);
+  expect(Array.isArray(parsed)).toBe(true);
+  if (!Array.isArray(parsed) || !(parsed[0] instanceof Uint8Array) || !(parsed[1] instanceof Map)) {
+    throw new Error("expected envelope tuple");
+  }
+  return { signature: parsed[0], sigPayload: parsed[1] };
+}
+
+function invocationPayload(sigPayload: Map<string, Ipld>): Map<string, Ipld> {
+  const payload = sigPayload.get("ucan/inv@1.0.0");
+  if (!(payload instanceof Map)) {
+    throw new Error("expected invocation payload map");
+  }
+  return payload;
+}
 
 describe("Invocation", () => {
   it("issuer_round_trip", () => {
-    // Create a signer from fixed bytes
-    const secretKey = new Uint8Array(32).fill(0);
-    const iss = new Ed25519Signer(secretKey);
-
-    const publicKey = new Uint8Array(32).fill(0);
-    const aud = new Ed25519Did(publicKey);
-    const sub = new Ed25519Did(publicKey);
+    const iss = new Ed25519Signer(new Uint8Array(32).fill(0));
+    const aud = did(1);
+    const sub = did(2);
 
     const builder = new InvocationBuilder()
       .issuer(iss)
       .audience(aud)
       .subject(sub)
       .commandFromStr("/read/write")
-      .proofs([]);
+      .proofs([])
+      .expiration(null);
 
     const invocation = builder.tryBuild();
 
     expect(invocation.issuer.toString()).toBe(iss.toString());
   });
 
-  it("built_token_uses_1_0_0_tag", () => {
-    // Final spec §Type Tag: "The UCAN envelope's payload tag MUST be ucan/inv@1.0.0"
-    const publicKey = new Uint8Array(32).fill(0);
-    const iss = new Ed25519Signer(new Uint8Array(32).fill(0));
-    const aud = new Ed25519Did(publicKey);
-    const sub = new Ed25519Did(publicKey);
+  it("deterministic_builder_roundtrip_matches_fixture", () => {
+    const iss = new Ed25519Signer(new Uint8Array(32).fill(7));
+    const aud = did(8);
+    const sub = did(9);
+    const nonce = Nonce.fromBytes(Uint8Array.from([16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]));
 
-    const builder = new InvocationBuilder()
+    const invocation = new InvocationBuilder()
       .issuer(iss)
       .audience(aud)
       .subject(sub)
-      .commandFromStr("/")
-      .proofs([]);
+      .commandFromStr("/read")
+      .proofs([])
+      .expiration(null)
+      .nonce(nonce)
+      .tryBuild();
 
-    const invocation = builder.tryBuild();
     const bytes = invocation.encode();
-    const parsed = ipldFromDagCbor(bytes);
+    expect(bytes).toEqual(new Uint8Array(Buffer.from(generatedFixture.invocationBytes, "base64")));
 
-    expect(Array.isArray(parsed)).toBe(true);
-    if (Array.isArray(parsed)) {
-      const envelopePayload = parsed[1];
-      expect(envelopePayload instanceof Map).toBe(true);
-      if (envelopePayload instanceof Map) {
-        expect(envelopePayload.has("ucan/inv@1.0.0")).toBe(true);
-        expect(envelopePayload.has("ucan/inv@1.0.0-rc.1")).toBe(false);
-      }
-    }
+    const { signature, sigPayload } = envelopeParts(bytes);
+    const headerBytes = sigPayload.get("h");
+    expect(headerBytes instanceof Uint8Array).toBe(true);
+    if (!(headerBytes instanceof Uint8Array)) return;
+
+    const header = Varsig.decode(headerBytes, ed25519TryFromTags);
+    header.verifierCfg.tryVerify(DagCborCodec, iss.did.publicKey, signature, sigPayload as Ipld);
+
+    const roundTripped = Invocation.decode(bytes);
+    expect(roundTripped.issuer.toString()).toBe(iss.toString());
+    expect(roundTripped.audience.toString()).toBe(aud.toString());
+    expect(roundTripped.subject.toString()).toBe(sub.toString());
+    expect(roundTripped.command.toString()).toBe("/read");
+    expect(roundTripped.expiration).toBe(null);
+    expect(roundTripped.issuedAt).toBe(null);
+    expect(roundTripped.cause).toBe(null);
+    expect(roundTripped.meta.size).toBe(0);
+    expect(roundTripped.nonce.toBytes()).toEqual(nonce.toBytes());
   });
 
   it("wire_field_is_args_not_arg", () => {
-    // Final spec §Invocation Payload: field is "args" not "arg"
-    const publicKey = new Uint8Array(32).fill(0);
-    const iss = new Ed25519Signer(new Uint8Array(32).fill(0));
-    const aud = new Ed25519Did(publicKey);
-    const sub = new Ed25519Did(publicKey);
+    const iss = new Ed25519Signer(new Uint8Array(32).fill(1));
+    const subject = did(2);
 
-    const builder = new InvocationBuilder()
+    const invocation = new InvocationBuilder()
       .issuer(iss)
-      .audience(aud)
-      .subject(sub)
+      .audience(subject)
+      .subject(subject)
       .commandFromStr("/")
-      .arguments(new Map([["foo", { kind: "string", value: "bar" } as import("../src/promise.js").Promised]]))
-      .proofs([]);
+      .arguments(new Map([["foo", "bar"]]))
+      .proofs([])
+      .expiration(null)
+      .tryBuild();
 
-    const invocation = builder.tryBuild();
-    const bytes = invocation.encode();
-    const parsed = ipldFromDagCbor(bytes);
+    const payload = invocationPayload(envelopeParts(invocation.encode()).sigPayload);
+    expect(payload.has("args")).toBe(true);
+    expect(payload.has("arg")).toBe(false);
+  });
 
-    // Drill into payload
-    expect(Array.isArray(parsed)).toBe(true);
-    if (Array.isArray(parsed)) {
-      const envelopePayload = parsed[1];
-      if (envelopePayload instanceof Map) {
-        // Find the invocation payload (skip "h")
-        let invPayload: any;
-        for (const [key, value] of envelopePayload) {
-          if (key.startsWith("ucan/inv")) {
-            invPayload = value;
-            break;
-          }
-        }
-        expect(invPayload instanceof Map).toBe(true);
-        if (invPayload instanceof Map) {
-          expect(invPayload.has("args")).toBe(true);
-          expect(invPayload.has("arg")).toBe(false);
-        }
-      }
-    }
+  it("omits_optional_fields_when_absent", () => {
+    const iss = new Ed25519Signer(new Uint8Array(32).fill(3));
+    const subject = did(4);
+
+    const invocation = new InvocationBuilder()
+      .issuer(iss)
+      .audience(subject)
+      .subject(subject)
+      .commandFromStr("/")
+      .proofs([])
+      .expiration(null)
+      .tryBuild();
+
+    const payload = invocationPayload(envelopeParts(invocation.encode()).sigPayload);
+    expect(payload.has("cause")).toBe(false);
+    expect(payload.has("iat")).toBe(false);
+    expect(payload.has("meta")).toBe(false);
+    expect(payload.has("exp")).toBe(true);
   });
 
   it("omits_aud_when_equal_to_sub", () => {
-    // Spec §Audience: "If intended Executor is the Subject the aud field MUST be omitted"
-    const publicKey = new Uint8Array(32).fill(0);
     const iss = new Ed25519Signer(new Uint8Array(32).fill(0));
-    const did = new Ed25519Did(publicKey);
+    const subject = did(0);
 
-    const builder = new InvocationBuilder()
+    const invocation = new InvocationBuilder()
       .issuer(iss)
-      .audience(did) // same as sub
-      .subject(did)
+      .audience(subject)
+      .subject(subject)
       .commandFromStr("/")
-      .proofs([]);
+      .proofs([])
+      .expiration(null)
+      .tryBuild();
 
-    const invocation = builder.tryBuild();
-    const bytes = invocation.encode();
-    const parsed = ipldFromDagCbor(bytes);
-
-    expect(Array.isArray(parsed)).toBe(true);
-    if (Array.isArray(parsed)) {
-      const envelopePayload = parsed[1];
-      if (envelopePayload instanceof Map) {
-        let invPayload: any;
-        for (const [key, value] of envelopePayload) {
-          if (key.startsWith("ucan/inv")) {
-            invPayload = value;
-            break;
-          }
-        }
-        expect(invPayload instanceof Map).toBe(true);
-        if (invPayload instanceof Map) {
-          // aud must be absent when aud === sub
-          expect(invPayload.has("aud")).toBe(false);
-          expect(invPayload.get("sub")).toBe(did.toString());
-        }
-      }
-    }
+    const payload = invocationPayload(envelopeParts(invocation.encode()).sigPayload);
+    expect(payload.has("aud")).toBe(false);
+    expect(payload.get("sub")).toBe(subject.toString());
   });
 
   it("includes_aud_when_different_from_sub", () => {
-    // Spec §Audience: include aud when different from sub
     const iss = new Ed25519Signer(new Uint8Array(32).fill(0));
-    const aud = new Ed25519Did(new Uint8Array(32).fill(1));
-    const sub = new Ed25519Did(new Uint8Array(32).fill(0));
+    const aud = did(1);
+    const sub = did(0);
 
-    const builder = new InvocationBuilder()
+    const invocation = new InvocationBuilder()
       .issuer(iss)
       .audience(aud)
       .subject(sub)
       .commandFromStr("/")
-      .proofs([]);
+      .proofs([])
+      .expiration(null)
+      .tryBuild();
 
-    const invocation = builder.tryBuild();
-    const bytes = invocation.encode();
-    const parsed = ipldFromDagCbor(bytes);
+    const payload = invocationPayload(envelopeParts(invocation.encode()).sigPayload);
+    expect(payload.get("aud")).toBe(aud.toString());
+  });
 
-    expect(Array.isArray(parsed)).toBe(true);
-    if (Array.isArray(parsed)) {
-      const envelopePayload = parsed[1];
-      if (envelopePayload instanceof Map) {
-        let invPayload: any;
-        for (const [key, value] of envelopePayload) {
-          if (key.startsWith("ucan/inv")) {
-            invPayload = value;
-            break;
-          }
-        }
-        expect(invPayload instanceof Map).toBe(true);
-        if (invPayload instanceof Map) {
-          expect(invPayload.get("aud")).toBe(aud.toString());
-        }
-      }
-    }
+  it("decode_rejects_missing_exp", () => {
+    const iss = new Ed25519Signer(new Uint8Array(32).fill(6));
+    const subject = did(5);
+
+    const invocation = new InvocationBuilder()
+      .issuer(iss)
+      .audience(subject)
+      .subject(subject)
+      .commandFromStr("/")
+      .proofs([])
+      .expiration(null)
+      .tryBuild();
+
+    const { signature, sigPayload } = envelopeParts(invocation.encode());
+    const payload = invocationPayload(sigPayload);
+    payload.delete("exp");
+    const mutated = ipldToDagCbor([signature, sigPayload]);
+
+    expect(() => Invocation.decode(mutated)).toThrow("missing field exp");
+  });
+
+  it("decode_rejects_aud_equal_to_sub_on_wire", () => {
+    const iss = new Ed25519Signer(new Uint8Array(32).fill(6));
+    const subject = did(5);
+
+    const invocation = new InvocationBuilder()
+      .issuer(iss)
+      .audience(subject)
+      .subject(subject)
+      .commandFromStr("/")
+      .proofs([])
+      .expiration(null)
+      .tryBuild();
+
+    const { signature, sigPayload } = envelopeParts(invocation.encode());
+    const payload = invocationPayload(sigPayload);
+    payload.set("aud", subject.toString());
+    const mutated = ipldToDagCbor([signature, sigPayload]);
+
+    expect(() => Invocation.decode(mutated)).toThrow("aud must be omitted when equal to sub");
   });
 });

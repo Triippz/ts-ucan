@@ -54,7 +54,7 @@ describe("Revocation", () => {
 
     expect(roundTripped.command.equals(REVOKE_COMMAND)).toBe(true);
     expect(roundTripped.nonce.toBytes()).toEqual(new Uint8Array());
-    expect(roundTripped.arguments.get("revoke")?.kind).toBe("link");
+    expect(roundTripped.arguments.get("revoke")?.toString()).toBe(aliceToBob.toCid().toString());
     expect(roundTripped.proofs.map((cid) => cid.toString())).toEqual([aliceToBob.toCid().toString()]);
   });
 
@@ -113,7 +113,7 @@ describe("Revocation", () => {
     }
   });
 
-  it("unrelated_revoker_does_not_invalidate_and_alternate_chain_passes", async () => {
+  it("junk_overlapping_path_does_not_invalidate", async () => {
     const alice = signer(1);
     const bob = signer(2);
     const carol = signer(3);
@@ -123,66 +123,99 @@ describe("Revocation", () => {
     const aliceToBob = new DelegationBuilder()
       .issuer(alice)
       .audience(bob.did)
-      .subject(specificSubject(alice.did))
+      .subject(specificSubject(bob.did))
       .commandFromStr("/")
       .tryBuild();
 
     const bobToCarol = new DelegationBuilder()
       .issuer(bob)
       .audience(carol.did)
-      .subject(specificSubject(alice.did))
+      .subject(specificSubject(bob.did))
       .commandFromStr("/")
       .tryBuild();
 
-    const bobToDave = new DelegationBuilder()
-      .issuer(bob)
+    const carolToDave = new DelegationBuilder()
+      .issuer(carol)
       .audience(dave.did)
-      .subject(specificSubject(alice.did))
-      .commandFromStr("/")
-      .tryBuild();
-
-    const daveToCarol = new DelegationBuilder()
-      .issuer(dave)
-      .audience(carol.did)
-      .subject(specificSubject(alice.did))
+      .subject(specificSubject(bob.did))
       .commandFromStr("/")
       .tryBuild();
 
     const delegationStore = new MapDelegationStore();
-    for (const delegation of [aliceToBob, bobToCarol, bobToDave, daveToCarol]) {
+    for (const delegation of [aliceToBob, bobToCarol, carolToDave]) {
       await delegationStore.insertByCid(delegation.toCid(), delegation);
     }
 
     const revocationStore = new MapRevocationStore();
     const malloryRevocation = revoke(
-      new InvocationBuilder()
-        .issuer(mallory)
-        .subject(mallory.did)
-        .audience(mallory.did)
-        .proofs([]),
-      bobToCarol.toCid(),
+      new InvocationBuilder().issuer(mallory).subject(mallory.did).audience(mallory.did).proofs([]).expiration(null),
+      carolToDave.toCid(),
+      [carolToDave.toCid()],
     );
-    await revocationStore.insert(bobToCarol.toCid(), malloryRevocation);
+    await revocationStore.insert(carolToDave.toCid(), malloryRevocation);
 
-    const directPayload = new InvocationBuilder()
-      .issuer(carol)
-      .subject(alice.did)
-      .audience(alice.did)
+    const payload = new InvocationBuilder()
+      .issuer(dave)
+      .subject(bob.did)
+      .audience(bob.did)
       .commandFromStr("/")
-      .proofs([aliceToBob.toCid(), bobToCarol.toCid()])
+      .proofs([bobToCarol.toCid(), carolToDave.toCid()])
+      .expiration(null)
       .build();
 
-    await expect(checkWithRevocations(directPayload, delegationStore, revocationStore)).resolves.toBeUndefined();
+    await expect(checkWithRevocations(payload, delegationStore, revocationStore)).resolves.toBeUndefined();
+  });
 
-    const alternatePayload = new InvocationBuilder()
-      .issuer(carol)
-      .subject(alice.did)
-      .audience(alice.did)
+  it("valid_delegated_path_invalidates", async () => {
+    const alice = signer(1);
+    const bob = signer(2);
+    const carol = signer(3);
+    const dave = signer(4);
+
+    const aliceToBob = new DelegationBuilder()
+      .issuer(alice)
+      .audience(bob.did)
+      .subject(specificSubject(bob.did))
       .commandFromStr("/")
-      .proofs([aliceToBob.toCid(), bobToDave.toCid(), daveToCarol.toCid()])
+      .tryBuild();
+
+    const bobToCarol = new DelegationBuilder()
+      .issuer(bob)
+      .audience(carol.did)
+      .subject(specificSubject(bob.did))
+      .commandFromStr("/")
+      .tryBuild();
+
+    const carolToDave = new DelegationBuilder()
+      .issuer(carol)
+      .audience(dave.did)
+      .subject(specificSubject(bob.did))
+      .commandFromStr("/")
+      .tryBuild();
+
+    const delegationStore = new MapDelegationStore();
+    for (const delegation of [aliceToBob, bobToCarol, carolToDave]) {
+      await delegationStore.insertByCid(delegation.toCid(), delegation);
+    }
+
+    const revocationStore = new MapRevocationStore();
+    const aliceRevocation = revoke(
+      new InvocationBuilder().issuer(alice).subject(alice.did).audience(alice.did).proofs([]).expiration(null),
+      carolToDave.toCid(),
+      [aliceToBob.toCid(), bobToCarol.toCid(), carolToDave.toCid()],
+    );
+    await revocationStore.insert(carolToDave.toCid(), aliceRevocation);
+
+    const payload = new InvocationBuilder()
+      .issuer(dave)
+      .subject(bob.did)
+      .audience(bob.did)
+      .commandFromStr("/")
+      .proofs([bobToCarol.toCid(), carolToDave.toCid()])
+      .expiration(null)
       .build();
 
-    await expect(checkWithRevocations(alternatePayload, delegationStore, revocationStore)).resolves.toBeUndefined();
+    await expect(checkWithRevocations(payload, delegationStore, revocationStore)).rejects.toBeInstanceOf(RevokedError);
   });
 
   it("store_is_append_only", async () => {

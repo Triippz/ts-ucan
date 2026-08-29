@@ -18,7 +18,7 @@ export class InvocationBuilder<D extends DidSigner = DidSigner> {
     public audienceField: D["did"] | typeof Unset = Unset,
     public subjectField: D["did"] | typeof Unset = Unset,
     public commandField: Command | typeof Unset = Unset,
-    public argumentsField: Map<string, import("../promise.js").Promised> = new Map(),
+    public argumentsField: Map<string, Ipld> = new Map(),
     public proofsField: CID[] | typeof Unset = Unset,
     public cause: CID | null = null,
     public expirationField: Timestamp | null = null,
@@ -95,7 +95,7 @@ export class InvocationBuilder<D extends DidSigner = DidSigner> {
     return this.command(Command.parse(s));
   }
 
-  arguments(argumentsValue: Map<string, import("../promise.js").Promised>): InvocationBuilder<D> {
+  arguments(argumentsValue: Map<string, Ipld>): InvocationBuilder<D> {
     return new InvocationBuilder(
       this.issuerField,
       this.audienceField,
@@ -202,13 +202,13 @@ export class InvocationBuilder<D extends DidSigner = DidSigner> {
   tryBuild(): Invocation<D["did"]> {
     const issuer = this.requireIssuer();
     const payload = this.intoPayload();
-    const { signature } = issuer.did.varsigConfig.trySign(
-      DagCborCodec,
-      issuer.signer as never,
-      invocationPayloadToIpld(payload),
-    );
-
     const header = new Varsig(issuer.did.varsigConfig, DagCborCodec);
+    const sigPayload = new Map<string, Ipld>([
+      ["h", header.encode()],
+      ["ucan/inv@1.0.0", invocationPayloadToIpld(payload)],
+    ]);
+    const { signature } = issuer.did.varsigConfig.trySign(DagCborCodec, issuer.signer as never, sigPayload);
+
     return new Invocation({
       signature,
       payload: {

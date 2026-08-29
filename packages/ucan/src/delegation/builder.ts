@@ -188,11 +188,11 @@ export class DelegationBuilder {
     const issuer = this.requireIssuer();
     const payload = this.intoPayload();
     const header = new Varsig(issuer.did.varsigConfig, DagCborCodec);
-    const { signature } = issuer.did.varsigConfig.trySign(
-      DagCborCodec,
-      issuer.signer as any,
-      delegationPayloadToIpld(payload),
-    );
+    const sigPayload = new Map<string, Ipld>([
+      ["h", header.encode()],
+      ["ucan/dlg@1.0.0", delegationPayloadToIpld(payload)],
+    ]);
+    const { signature } = issuer.did.varsigConfig.trySign(DagCborCodec, issuer.signer as any, sigPayload);
 
     return new Delegation<Did>({
       signature,

@@ -5,7 +5,6 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { Delegation } from "../src/delegation/index.js";
 import { DelegationBuilder } from "../src/index.js";
 import { Ed25519Signer, Ed25519Did } from "../src/did.js";
 import { DelegatedSubject } from "../src/delegation/subject.js";
@@ -26,9 +25,8 @@ describe("Delegation", () => {
     const secretKey = new Uint8Array(32).fill(0);
     const iss = new Ed25519Signer(secretKey);
 
-    const publicKey = new Uint8Array(32).fill(0);
-    const aud = new Ed25519Did(publicKey);
-    const sub = new Ed25519Did(publicKey);
+    const aud = new Ed25519Signer(new Uint8Array(32).fill(0)).did;
+    const sub = new Ed25519Signer(new Uint8Array(32).fill(0)).did;
 
     const builder = new DelegationBuilder()
       .issuer(iss)
@@ -41,31 +39,28 @@ describe("Delegation", () => {
     expect(delegation.issuer.toString()).toBe(iss.toString());
   });
 
-  it("delegation_b64_fixture_roundtrip", () => {
-    // Sample delegation with sub: null, cmd: "/", exp: null, meta: {}
+  it("legacy_rc1_fixture_parse_shape_only", () => {
+    // rc-era legacy vector; final-spec decode rejects the old payload tag.
     const b64 =
       "glhA0rict5hwniXnh54Y7b0v/ZEDNSlPdBx0rsoWDYC2Ylv+UzDr00s7ojPsfvNwrofqKItK911ZGJggZSkeQIB3DqJhaEg0Ae0B7QETcXN1Y2FuL2RsZ0AxLjAuMC1yYy4xqWNhdWR4OGRpZDprZXk6ejZNa2ZGSkJ4U0JGZ29BcVRRTFM3YlRmUDhNZ3lEeXB2YTVpNkNMNVBKTjhSSlpyY2NtZGEvY2V4cPZjaXNzeDhkaWQ6a2V5Ono2TWtyQXNxMU03dEVmUHZXNWRSMlVGQ3daU3pSTU5YWWVUVzh0R1pTS3ZVbTlFWmNuYmYaaSTxp2Nwb2yAY3N1YvZkbWV0YaBlbm9uY2VMVkDFeab+58p8SMpW";
     const bytes = base64ToBytes(b64);
+    const parsed = ipldFromDagCbor(bytes);
 
-    // Parse as Delegation
-    const delegation = Delegation.decode(bytes);
+    expect(Array.isArray(parsed)).toBe(true);
+    if (!Array.isArray(parsed)) return;
 
-    // Verify fields parsed correctly
-    expect(delegation.subject.kind).toBe("any"); // sub: null
-    expect(delegation.command.toString()).toBe("/"); // cmd: "/"
-    expect(delegation.expiration).toBe(null); // exp: null
-    expect(delegation.notBefore).not.toBe(null); // nbf: 1764028839
-
-    // Serialize back
-    const reserialized = delegation.encode();
-
-    // Verify byte-exact roundtrip
-    expect(bytes).toEqual(reserialized);
+    expect(parsed.length).toBe(2);
+    const envelopePayload = parsed[1];
+    expect(envelopePayload instanceof Map).toBe(true);
+    if (envelopePayload instanceof Map) {
+      expect(envelopePayload.has("h")).toBe(true);
+      expect(envelopePayload.has("ucan/dlg@1.0.0-rc.1")).toBe(true);
+      expect(envelopePayload.has("ucan/dlg@1.0.0")).toBe(false);
+    }
   });
 
   it("delegation_payload_any_subject_serializes_to_null", () => {
-    const publicKey = new Uint8Array(32).fill(0);
-    const aud = new Ed25519Did(publicKey);
+    const aud = new Ed25519Signer(new Uint8Array(32).fill(0)).did;
 
     const builder = new DelegationBuilder()
       .issuer(new Ed25519Signer(new Uint8Array(32).fill(0)))

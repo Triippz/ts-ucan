@@ -11,7 +11,7 @@ import { Command } from "../command.js";
 import { Nonce } from "../crypto/nonce.js";
 import { Timestamp } from "../time/index.js";
 import type { PayloadTag } from "../envelope/payloadTag.js";
-import { envelopeFromIpld, envelopeToIpld, type Envelope } from "../envelope/index.js";
+import { envelopeFromIpld, envelopeToIpld, tagOf, type Envelope } from "../envelope/index.js";
 import { toDagCborCid } from "../cid.js";
 import { ed25519TryFromTags } from "@marktripoli/varsig";
 import type { Predicate } from "./policy/index.js";
@@ -35,17 +35,20 @@ export interface DelegationPayload<D extends Did = Did> {
 }
 
 export function delegationPayloadToIpld<D extends Did>(p: DelegationPayload<D>): Ipld {
-  return new Map<string, Ipld>([
+  const entries: [string, Ipld][] = [
     ["iss", p.issuer.toString()],
     ["aud", p.audience.toString()],
     ["sub", subjectToIpld(p.subject)],
     ["cmd", p.command.toString()],
     ["pol", p.policy.map(predicateToIpld)],
     ["exp", p.expiration === null ? null : p.expiration.toIpld()],
-    ["nbf", p.notBefore === null ? null : p.notBefore.toIpld()],
     ["meta", p.meta],
     ["nonce", p.nonce.toIpld()],
-  ]);
+  ];
+  if (p.notBefore !== null) {
+    entries.splice(6, 0, ["nbf", p.notBefore.toIpld()]);
+  }
+  return new Map<string, Ipld>(entries);
 }
 
 export function ipldToDelegationPayload<D extends Did>(i: Ipld): DelegationPayload<D> {
@@ -59,7 +62,7 @@ export function ipldToDelegationPayload<D extends Did>(i: Ipld): DelegationPaylo
   let command: Command | undefined;
   let policy: Predicate[] | undefined;
   let expiration: Timestamp | null | undefined;
-  let notBefore: Timestamp | null | undefined;
+  let notBefore: Timestamp | null = null;
   let notBeforeSeen = false;
   let meta = new Map<string, Ipld>();
   let metaSeen = false;
@@ -120,7 +123,10 @@ export function ipldToDelegationPayload<D extends Did>(i: Ipld): DelegationPaylo
           throw new Error("duplicate field nbf");
         }
         notBeforeSeen = true;
-        notBefore = value === null ? null : Timestamp.fromWireIpld(value);
+        if (value === null) {
+          throw new Error("expected nbf to be an integer");
+        }
+        notBefore = Timestamp.fromWireIpld(value);
         break;
       case "meta":
         if (metaSeen) {
@@ -172,7 +178,7 @@ export function ipldToDelegationPayload<D extends Did>(i: Ipld): DelegationPaylo
     command,
     policy,
     expiration,
-    notBefore: notBefore ?? null,
+    notBefore,
     meta,
     nonce,
   };
@@ -241,7 +247,7 @@ export class Delegation<D extends Did = Did> {
 
   static decode(bytes: Uint8Array): Delegation<Ed25519Did> {
     const ipld = ipldFromDagCbor(bytes);
-    const envelope = envelopeFromIpld(ipld, ipldToDelegationPayload<Ed25519Did>, ed25519TryFromTags);
+    const envelope = envelopeFromIpld(ipld, tagOf(delegationPayloadTag), ipldToDelegationPayload<Ed25519Did>, ed25519TryFromTags);
     return new Delegation<Ed25519Did>(envelope);
   }
 }

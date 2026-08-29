@@ -5,12 +5,20 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { DagCborCodec, Varsig, ed25519TryFromTags } from "@marktripoli/varsig";
+import type { Ipld } from "../src/ipld.js";
 import { Delegation } from "../src/delegation/index.js";
 import { DelegationBuilder } from "../src/index.js";
 import { Ed25519Signer, Ed25519Did } from "../src/did.js";
 import { DelegatedSubject } from "../src/delegation/subject.js";
+import { Nonce } from "../src/crypto/nonce.js";
 import { ipldFromDagCbor } from "../src/ipld.js";
 import delegationFixture from "./fixtures/delegation.json" assert { type: "json" };
+import generatedFixture from "./fixtures/generated.json" assert { type: "json" };
+
+function did(seed: number): Ed25519Did {
+  return new Ed25519Signer(new Uint8Array(32).fill(seed)).did;
+}
 
 function base64ToBytes(b64: string): Uint8Array {
   const binaryString = atob(b64);
@@ -27,82 +35,68 @@ describe("Delegation Conformance", () => {
     expect(delegationFixture.version).toBe("1.0.0-rc.1");
   });
 
-  it("test_top_level_parse", () => {
-    const validDelegations = (delegationFixture as any).valid;
-    expect(validDelegations).toBeDefined();
-    expect(validDelegations.length).toBeGreaterThan(0);
-
-    const first = validDelegations[0];
-    const b64Token = first.token;
-    expect(b64Token).toBeDefined();
-
-    // Decode base64 to bytes
-    const uint8Bytes = base64ToBytes(b64Token);
-
-    // Parse as Delegation (decode expects DAG-CBOR bytes)
-    const delegation = Delegation.decode(uint8Bytes);
-
-    // Verify fields
-    expect(delegation.policy).toBeDefined();
-    expect(delegation.policy.length).toBe(0);
-  });
-
-  it("rc1_fixture_decode_and_tag_roundtrip", () => {
-    // Old fixture with rc.1 tag decodes correctly (tag is preserved for re-encode)
+  it("legacy_rc1_fixture_parse_shape_only", () => {
+    // rc-era legacy vector; final-spec decode rejects the old payload tag.
     const validDelegations = (delegationFixture as any).valid;
     const b64Token = validDelegations[0].token;
     const bytes = base64ToBytes(b64Token);
+    const parsed = ipldFromDagCbor(bytes);
 
-    const delegation = Delegation.decode(bytes);
-    const reserialized = delegation.encode();
+    expect(Array.isArray(parsed)).toBe(true);
+    if (!Array.isArray(parsed)) return;
 
-    // Decode again and verify all payload fields survived
-    const roundtripped = Delegation.decode(reserialized);
-    expect(roundtripped.issuer.toString()).toBe(delegation.issuer.toString());
-    expect(roundtripped.audience.toString()).toBe(delegation.audience.toString());
-    expect(roundtripped.subject.kind).toBe(delegation.subject.kind);
-    expect(roundtripped.command.toString()).toBe(delegation.command.toString());
-    expect(roundtripped.policy.length).toBe(delegation.policy.length);
-    expect(roundtripped.expiration).toStrictEqual(delegation.expiration);
-    expect(roundtripped.notBefore).toStrictEqual(delegation.notBefore);
-    expect(roundtripped.nonce.toBytes()).toEqual(delegation.nonce.toBytes());
-
-    // Verify tag is preserved through encode: decode the reserialized bytes
-    // and check that the wire tag key is still the original rc.1 tag
-    // (field ordering may differ, so we don't require byte-exact match)
-    if (Array.isArray(bytes) && Array.isArray(reserialized)) {
-      // At minimum, both should have 2-element tuple structure
-      expect(reserialized.length).toBe(2);
-      expect(reserialized[0] instanceof Uint8Array).toBe(true);
-      expect(reserialized[1] instanceof Map).toBe(true);
+    expect(parsed.length).toBe(2);
+    const envelopePayload = parsed[1];
+    expect(envelopePayload instanceof Map).toBe(true);
+    if (envelopePayload instanceof Map) {
+      expect(envelopePayload.has("h")).toBe(true);
+      expect(envelopePayload.has("ucan/dlg@1.0.0-rc.1")).toBe(true);
+      expect(envelopePayload.has("ucan/dlg@1.0.0")).toBe(false);
     }
   });
 
-  it("built_token_uses_1_0_0_tag", () => {
-    // Newly built tokens must carry the 1.0.0 tag per final spec
-    const publicKey = new Uint8Array(32).fill(0);
-    const aud = new Ed25519Did(publicKey);
-    const sub = new Ed25519Did(publicKey);
+  it("deterministic_builder_roundtrip_matches_fixture", () => {
+    const iss = new Ed25519Signer(new Uint8Array(32).fill(7));
+    const aud = did(8);
+    const sub = did(9);
+    const nonce = Nonce.fromBytes(Uint8Array.from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]));
 
-    const builder = new DelegationBuilder()
-      .issuer(new Ed25519Signer(new Uint8Array(32).fill(0)))
+    const delegation = new DelegationBuilder()
+      .issuer(iss)
       .audience(aud)
       .subject({ kind: "specific", did: sub } as DelegatedSubject<Ed25519Did>)
-      .commandFromStr("/");
+      .commandFromStr("/read")
+      .expiration(null)
+      .nonce(nonce)
+      .tryBuild();
 
-    const delegation = builder.tryBuild();
     const bytes = delegation.encode();
-    const parsed = ipldFromDagCbor(bytes);
+    expect(bytes).toEqual(new Uint8Array(Buffer.from(generatedFixture.delegationBytes, "base64")));
 
-    // Verify envelope structure: [signature, {"h": ..., "ucan/dlg@1.0.0": ...}]
+    const parsed = ipldFromDagCbor(bytes);
     expect(Array.isArray(parsed)).toBe(true);
-    if (Array.isArray(parsed)) {
-      const envelopePayload = parsed[1];
-      expect(envelopePayload instanceof Map).toBe(true);
-      if (envelopePayload instanceof Map) {
-        expect(envelopePayload.has("ucan/dlg@1.0.0")).toBe(true);
-        expect(envelopePayload.has("ucan/dlg@1.0.0-rc.1")).toBe(false);
-      }
-    }
+    if (!Array.isArray(parsed)) return;
+
+    const signature = parsed[0];
+    const sigPayload = parsed[1];
+    expect(signature instanceof Uint8Array).toBe(true);
+    expect(sigPayload instanceof Map).toBe(true);
+    if (!(signature instanceof Uint8Array) || !(sigPayload instanceof Map)) return;
+
+    const headerBytes = sigPayload.get("h");
+    expect(headerBytes instanceof Uint8Array).toBe(true);
+    if (!(headerBytes instanceof Uint8Array)) return;
+
+    const header = Varsig.decode(headerBytes, ed25519TryFromTags);
+    header.verifierCfg.tryVerify(DagCborCodec, iss.did.publicKey, signature, sigPayload as Ipld);
+
+    const roundTripped = Delegation.decode(bytes);
+    expect(roundTripped.issuer.toString()).toBe(iss.toString());
+    expect(roundTripped.audience.toString()).toBe(aud.toString());
+    expect(roundTripped.subject.kind).toBe("specific");
+    expect(roundTripped.command.toString()).toBe("/read");
+    expect(roundTripped.expiration).toBe(null);
+    expect(roundTripped.notBefore).toBe(null);
+    expect(roundTripped.nonce.toBytes()).toEqual(nonce.toBytes());
   });
 });

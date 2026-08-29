@@ -12,8 +12,18 @@ export type { PayloadTag } from "./payloadTag.js";
 export interface EnvelopePayload<V extends Verify<any>, T> {
   readonly header: Varsig<V>;
   readonly payload: T;
-  /** The wire tag key from decode (e.g. "ucan/dlg@1.0.0-rc.1"), preserved for exact roundtrip.  */
-  readonly tag?: string;
+}
+
+export function sigPayloadToIpld<V extends Verify<any>, T>(
+  header: Varsig<V>,
+  tag: import("./payloadTag.js").PayloadTag,
+  payload: T,
+  payloadToIpld: (t: T) => Ipld,
+): Ipld {
+  return new Map<string, Ipld>([
+    ["h", header.encode()],
+    [tagOf(tag), payloadToIpld(payload)],
+  ]);
 }
 
 export interface Envelope<V extends Verify<any>, T> {
@@ -26,19 +36,12 @@ export function envelopeToIpld<V extends Verify<any>, T>(
   tag: import("./payloadTag.js").PayloadTag,
   payloadToIpld: (t: T) => Ipld,
 ): Ipld {
-  // Use stored tag from decode for exact roundtrip, otherwise compute from PayloadTag
-  const tagString = e.payload.tag ?? tagOf(tag);
-  return [
-    e.signature,
-    new Map<string, Ipld>([
-      ["h", e.payload.header.encode()],
-      [tagString, payloadToIpld(e.payload.payload)],
-    ]),
-  ];
+  return [e.signature, sigPayloadToIpld(e.payload.header, tag, e.payload.payload, payloadToIpld)];
 }
 
 export function envelopeFromIpld<V extends Verify<any>, T>(
   ipld: Ipld,
+  expectedTag: string,
   ipldToPayload: (i: Ipld) => T,
   tryFromTags: TryFromTags<V>,
 ): Envelope<V, T> {
@@ -57,8 +60,6 @@ export function envelopeFromIpld<V extends Verify<any>, T>(
   let headerBytes: Uint8Array | undefined;
   let payloadValue: Ipld | undefined;
   let sawPayload = false;
-  // Preserve the original tag key for byte-exact roundtrip of decoded tokens
-  let tagKey: string | undefined;
 
   for (const [key, value] of payloadIpld) {
     if (key === "h") {
@@ -72,19 +73,21 @@ export function envelopeFromIpld<V extends Verify<any>, T>(
       continue;
     }
 
+    if (key !== expectedTag) {
+      throw new Error(`expected payload tag ${expectedTag}`);
+    }
     if (sawPayload) {
-      throw new Error("multiple payload fields");
+      throw new Error("duplicate payload field");
     }
     sawPayload = true;
     payloadValue = value;
-    tagKey = key;
   }
 
   if (headerBytes === undefined) {
     throw new Error("missing field h");
   }
   if (!sawPayload) {
-    throw new Error("missing payload");
+    throw new Error(`missing payload field ${expectedTag}`);
   }
 
   const header = Varsig.decode(headerBytes, tryFromTags);
@@ -94,7 +97,6 @@ export function envelopeFromIpld<V extends Verify<any>, T>(
     payload: {
       header,
       payload: ipldToPayload(payloadValue!),
-      tag: tagKey,
     },
   };
 }

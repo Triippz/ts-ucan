@@ -145,25 +145,33 @@ describe("Container", () => {
     });
 
     it("rejects missing ctn-v1 key", async () => {
-      import("@ipld/dag-cbor").then(async (dagCbor) => {
-        const wrongContainer = dagCbor.encode({ "wrong-key": [] });
-        const bytes = new Uint8Array(wrongContainer.length + 1);
-        bytes[0] = ContainerHeader.Bytes;
-        bytes.set(wrongContainer, 1);
+      const dagCbor = await import("@ipld/dag-cbor");
+      const wrongContainer = dagCbor.encode({ "wrong-key": [] });
+      const bytes = new Uint8Array(wrongContainer.length + 1);
+      bytes[0] = ContainerHeader.Bytes;
+      bytes.set(wrongContainer, 1);
 
-        await expect(containerFromBytes(bytes)).rejects.toThrow('"ctn-v1" key');
-      });
+      await expect(containerFromBytes(bytes)).rejects.toThrow('exactly one key "ctn-v1"');
+    });
+
+    it("rejects extra keys in container map", async () => {
+      const dagCbor = await import("@ipld/dag-cbor");
+      const wrongContainer = dagCbor.encode({ "ctn-v1": [], extra: [] });
+      const bytes = new Uint8Array(wrongContainer.length + 1);
+      bytes[0] = ContainerHeader.Bytes;
+      bytes.set(wrongContainer, 1);
+
+      await expect(containerFromBytes(bytes)).rejects.toThrow('exactly one key "ctn-v1"');
     });
 
     it("rejects non-array ctn-v1 value", async () => {
-      import("@ipld/dag-cbor").then(async (dagCbor) => {
-        const wrongContainer = dagCbor.encode({ "ctn-v1": "not-an-array" });
-        const bytes = new Uint8Array(wrongContainer.length + 1);
-        bytes[0] = ContainerHeader.Bytes;
-        bytes.set(wrongContainer, 1);
+      const dagCbor = await import("@ipld/dag-cbor");
+      const wrongContainer = dagCbor.encode({ "ctn-v1": "not-an-array" });
+      const bytes = new Uint8Array(wrongContainer.length + 1);
+      bytes[0] = ContainerHeader.Bytes;
+      bytes.set(wrongContainer, 1);
 
-        await expect(containerFromBytes(bytes)).rejects.toThrow("must be an array");
-      });
+      await expect(containerFromBytes(bytes)).rejects.toThrow('"ctn-v1" must be an array');
     });
   });
 
@@ -255,6 +263,11 @@ describe("Container", () => {
   });
 
   describe("encoding options", () => {
+    it("rejects unknown header byte", async () => {
+      const bytes = new Uint8Array([0x41]);
+      await expect(containerFromBytes(bytes)).rejects.toThrow("unknown container header");
+    });
+
     it("containerToBytes with encoding: bytes", async () => {
       const tokens = await containerFromBytes(bytesVector);
 

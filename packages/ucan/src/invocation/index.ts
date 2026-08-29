@@ -11,14 +11,13 @@ import { Command } from "../command.js";
 import { Nonce } from "../crypto/nonce.js";
 import { Timestamp } from "../time/index.js";
 import type { PayloadTag } from "../envelope/index.js";
-import { envelopeFromIpld, envelopeToIpld, type Envelope } from "../envelope/index.js";
+import { envelopeFromIpld, envelopeToIpld, tagOf, type Envelope } from "../envelope/index.js";
 import { toDagCborCid } from "../cid.js";
 import { ed25519TryFromTags } from "@marktripoli/varsig";
 import type { Delegation } from "../delegation/index.js";
 import type { DelegationStore } from "../delegation/store.js";
 import { subjectAllows } from "../delegation/subject.js";
 import { runPredicate, RunError } from "../delegation/policy/index.js";
-import { promisedToIpld, promisedToWireIpld, wireIpldToPromised, type Promised, WaitingOnError } from "../promise.js";
 import { InvocationBuilder } from "./builder.js";
 
 export interface InvocationPayload<D extends Did = Did> {
@@ -26,7 +25,7 @@ export interface InvocationPayload<D extends Did = Did> {
   readonly audience: D;
   readonly subject: D;
   readonly command: Command;
-  readonly arguments: Map<string, Promised>;
+  readonly arguments: Map<string, Ipld>;
   readonly proofs: CID[];
   readonly cause: CID | null;
   readonly issuedAt: Timestamp | null;
@@ -41,14 +40,20 @@ export function invocationPayloadToIpld<D extends Did>(p: InvocationPayload<D>):
     ["iss", p.issuer.toString()],
     ["sub", p.subject.toString()],
     ["cmd", p.command.toString()],
-    ["args", mapToIpld(p.arguments, promisedToWireIpld)],
+    ["args", p.arguments],
     ["prf", p.proofs],
-    ["cause", p.cause],
-    ["iat", p.issuedAt === null ? null : p.issuedAt.toIpld()],
     ["exp", p.expiration === null ? null : p.expiration.toIpld()],
-    ["meta", p.meta],
     ["nonce", p.nonce.toIpld()],
   ];
+  if (p.cause !== null) {
+    entries.push(["cause", p.cause]);
+  }
+  if (p.issuedAt !== null) {
+    entries.push(["iat", p.issuedAt.toIpld()]);
+  }
+  if (p.meta.size > 0) {
+    entries.push(["meta", p.meta]);
+  }
   if (!p.audience.equals(p.subject)) {
     entries.splice(1, 0, ["aud", p.audience.toString()]);
   }
@@ -64,7 +69,7 @@ export function ipldToInvocationPayload<D extends Did>(i: Ipld): InvocationPaylo
   let audience: D | undefined;
   let subject: D | undefined;
   let command: Command | undefined;
-  let argumentsValue: Map<string, Promised> | undefined;
+  let argumentsValue: Map<string, Ipld> | undefined;
   let proofs: CID[] | undefined;
   let cause: CID | null | undefined;
   let issuedAt: Timestamp | null | undefined;
@@ -97,7 +102,7 @@ export function ipldToInvocationPayload<D extends Did>(i: Ipld): InvocationPaylo
       case "args":
         if (argumentsValue !== undefined) throw new Error("duplicate field args");
         if (!(value instanceof Map)) throw new Error("expected args to be a map");
-        argumentsValue = mapToValue(value, wireIpldToPromised);
+        argumentsValue = new Map(value);
         break;
       case "prf":
         if (proofs !== undefined) throw new Error("duplicate field prf");
@@ -110,17 +115,17 @@ export function ipldToInvocationPayload<D extends Did>(i: Ipld): InvocationPaylo
         break;
       case "cause":
         if (cause !== undefined) throw new Error("duplicate field cause");
-        if (value === null) {
-          cause = null;
-        } else {
+        if (value === null) throw new Error("expected cause to be a CID");
+        {
           const cid = CID.asCID(value);
-          if (!cid) throw new Error("expected cause to be a CID or null");
+          if (!cid) throw new Error("expected cause to be a CID");
           cause = cid;
         }
         break;
       case "iat":
         if (issuedAt !== undefined) throw new Error("duplicate field iat");
-        issuedAt = value === null ? null : Timestamp.fromWireIpld(value);
+        if (value === null) throw new Error("expected iat to be an integer");
+        issuedAt = Timestamp.fromWireIpld(value);
         break;
       case "exp":
         if (expiration !== undefined) throw new Error("duplicate field exp");
@@ -142,15 +147,19 @@ export function ipldToInvocationPayload<D extends Did>(i: Ipld): InvocationPaylo
 
   if (issuer === undefined) throw new Error("missing field iss");
   if (subject === undefined) throw new Error("missing field sub");
-  // Spec §Audience: if aud is omitted it is implicitly equal to sub
   if (audience === undefined) {
     audience = subject;
+  } else if (audience.equals(subject)) {
+    throw new Error("aud must be omitted when equal to sub");
   }
   if (command === undefined) throw new Error("missing field cmd");
   if (argumentsValue === undefined) throw new Error("missing field args");
   if (proofs === undefined) throw new Error("missing field prf");
-  if (meta === undefined) throw new Error("missing field meta");
+  if (expiration === undefined) throw new Error("missing field exp");
   if (nonce === undefined) throw new Error("missing field nonce");
+  if (meta === undefined) {
+    meta = new Map();
+  }
 
   return {
     issuer,
@@ -161,7 +170,7 @@ export function ipldToInvocationPayload<D extends Did>(i: Ipld): InvocationPaylo
     proofs,
     cause: cause ?? null,
     issuedAt: issuedAt ?? null,
-    expiration: expiration ?? null,
+    expiration,
     meta,
     nonce,
   };
@@ -190,15 +199,7 @@ export async function check<D extends Did>(payload: InvocationPayload<D>, store:
 }
 
 export function syntaticChecks<D extends Did>(payload: InvocationPayload<D>, proofs: Iterable<Delegation<D>>): void {
-  let args: Ipld;
-  try {
-    args = mapToIpld(payload.arguments, promisedToIpld);
-  } catch (error) {
-    if (error instanceof WaitingOnError) {
-      throw new CheckFailed("waitingOnPromise", error);
-    }
-    throw error;
-  }
+  const args = payload.arguments;
 
   let expectedIssuer = payload.subject;
 
@@ -295,7 +296,7 @@ export class Invocation<D extends Did = Did> {
     return this.envelope.payload.payload.command;
   }
 
-  get arguments(): Map<string, Promised> {
+  get arguments(): Map<string, Ipld> {
     return this.envelope.payload.payload.arguments;
   }
 
@@ -309,6 +310,10 @@ export class Invocation<D extends Did = Did> {
 
   get expiration(): Timestamp | null {
     return this.envelope.payload.payload.expiration;
+  }
+
+  get issuedAt(): Timestamp | null {
+    return this.envelope.payload.payload.issuedAt;
   }
 
   get meta(): Map<string, Ipld> {
@@ -329,23 +334,8 @@ export class Invocation<D extends Did = Did> {
 
   static decode(bytes: Uint8Array): Invocation<Ed25519Did> {
     const ipld = ipldFromDagCbor(bytes);
-    const envelope = envelopeFromIpld(ipld, ipldToInvocationPayload<Ed25519Did>, ed25519TryFromTags);
+    const envelope = envelopeFromIpld(ipld, tagOf(invocationPayloadTag), ipldToInvocationPayload<Ed25519Did>, ed25519TryFromTags);
     return new Invocation<Ed25519Did>(envelope);
   }
 }
 
-function mapToIpld<T>(map: Map<string, T>, convert: (value: T) => Ipld): Map<string, Ipld> {
-  const out = new Map<string, Ipld>();
-  for (const [key, value] of map) {
-    out.set(key, convert(value));
-  }
-  return out;
-}
-
-function mapToValue<T>(map: Map<string, Ipld>, convert: (value: Ipld) => T): Map<string, T> {
-  const out = new Map<string, T>();
-  for (const [key, value] of map) {
-    out.set(key, convert(value));
-  }
-  return out;
-}

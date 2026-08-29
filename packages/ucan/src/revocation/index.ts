@@ -6,15 +6,19 @@ import { CID } from "multiformats/cid";
 import type { Did, DidSigner } from "../did.js";
 import { Command } from "../command.js";
 import { Nonce } from "../crypto/nonce.js";
+import type { Ipld } from "../ipld.js";
 import type { InvocationPayload, Invocation } from "../invocation/index.js";
 import { check } from "../invocation/index.js";
 import { InvocationBuilder } from "../invocation/builder.js";
 import type { DelegationStore } from "../delegation/store.js";
-import type { Promised } from "../promise.js";
+import { subjectCoherent } from "../delegation/subject.js";
 
-// Revocation/README.md still spells the command as "ucan/revoke" in prose, while
-// spec/README.md requires commands to be slash-delimited. Parse the final UCAN
-// grammar form here so it survives Command.parse.
+/*
+ * Spec conflict, resolved deliberately:
+ * - core command grammar requires a leading slash: .reference/spec/README.md:405
+ * - revocation prose predates that grammar and still shows "ucan/revoke"
+ * We keep the grammar form "/ucan/revoke" here so Command.parse accepts the final spec.
+ */
 export const REVOKE_COMMAND = Command.parse("/ucan/revoke");
 
 export function revoke<DSigner extends DidSigner>(
@@ -22,10 +26,10 @@ export function revoke<DSigner extends DidSigner>(
   revoked: CID,
   path: CID[] = [],
 ): Invocation<DSigner["did"]> {
-  const args = new Map<string, Promised>([["revoke", link(revoked)]]);
+  const args = new Map<string, Ipld>([["revoke", revoked]]);
 
   if (path.length > 0) {
-    args.set("path", { kind: "list", values: path.map(link) });
+    args.set("path", path);
   }
 
   // Revocation/README.md §Invoking Revocation: nonce MUST be empty bytes because
@@ -72,45 +76,58 @@ export async function checkWithRevocations<D extends Did>(
   await check(payload, delegationStore);
 
   const proofs = await delegationStore.getAll(payload.proofs);
-  const proofIssuers = proofs.map((proof) => proof.issuer);
-  const proofCidStrings = new Set(payload.proofs.map((cid) => cid.toString()));
 
   // Revocation/README.md §Store: a revoked delegation invalidates the chain if
   // the revoker is one of the proof-chain delegators. §Path Witness: delegated
-  // revocations may also invalidate when their path witness overlaps the chain.
+  // revocations may also invalidate when their path witness resolves to a valid
+  // delegation chain that reaches the revoked CID.
   for (const proofCid of payload.proofs) {
     const revocation = await revocationStore.lookup(proofCid);
     if (revocation === undefined) continue;
 
-    if (proofIssuers.some((issuer) => issuer.equals(revocation.issuer))) {
+    if (proofs.some((proof) => proof.issuer.equals(revocation.issuer))) {
       throw new RevokedError(proofCid, revocation.issuer);
     }
 
-    if (pathWitnessOverlapsProofChain(revocation, proofCidStrings)) {
+    if (await pathWitnessInvalidates(revocation, proofCid, delegationStore)) {
       throw new RevokedError(proofCid, revocation.issuer);
     }
   }
 }
 
-function link(cid: CID): Promised {
-  return { kind: "link", cid };
-}
-
-function pathWitnessOverlapsProofChain(revocation: Invocation<Did>, proofCidStrings: Set<string>): boolean {
+async function pathWitnessInvalidates<D extends Did>(
+  revocation: Invocation<D>,
+  revoked: CID,
+  delegationStore: DelegationStore<D>,
+): Promise<boolean> {
   const path = revocation.arguments.get("path");
-  if (path === undefined) return false;
-  if (path.kind !== "list") {
-    throw new Error("expected revocation path to be a list");
+  if (!Array.isArray(path) || path.length === 0) return false;
+
+  const pathCids: CID[] = [];
+  for (const item of path) {
+    const cid = CID.asCID(item);
+    if (!cid) return false;
+    pathCids.push(cid);
   }
 
-  for (const item of path.values) {
-    if (item.kind !== "link") {
-      throw new Error("expected revocation path entries to be CIDs");
-    }
-    if (proofCidStrings.has(item.cid.toString())) {
-      return true;
-    }
+  if (!pathCids[pathCids.length - 1].equals(revoked)) return false;
+
+  let delegations;
+  try {
+    delegations = await delegationStore.getAll(pathCids);
+  } catch {
+    return false;
   }
 
-  return false;
+  if (delegations.length !== pathCids.length) return false;
+  if (!delegations.some((delegation) => delegation.issuer.equals(revocation.issuer))) return false;
+
+  for (let i = 1; i < delegations.length; i++) {
+    const previous = delegations[i - 1];
+    const current = delegations[i];
+    if (!previous.audience.equals(current.issuer)) return false;
+    if (!subjectCoherent(previous.subject, current.subject)) return false;
+  }
+
+  return true;
 }

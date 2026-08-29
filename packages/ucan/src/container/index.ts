@@ -114,31 +114,43 @@ export async function containerFromBytes(bytes: Uint8Array): Promise<Uint8Array[
   const header = bytes[0];
   const payload = bytes.slice(1);
 
-  // Determine compression and encoding from header
-  const isGzipped =
-    header === ContainerHeader.BytesGzipped ||
-    header === ContainerHeader.Base64StdPaddingGzipped ||
-    header === ContainerHeader.Base64UrlGzipped;
-
   let cbor = payload;
+  let isGzipped = false;
 
-  // §2.2: Decode base64 if applicable
-  if (
-    header === ContainerHeader.Base64StdPadding ||
-    header === ContainerHeader.Base64StdPaddingGzipped
-  ) {
-    const b64String = Buffer.from(payload).toString("utf-8");
-    cbor = new Uint8Array(Buffer.from(b64String, "base64"));
-  } else if (header === ContainerHeader.Base64Url || header === ContainerHeader.Base64UrlGzipped) {
-    // §2.2: base64 URL without padding; restore padding for decoding
-    let b64url = Buffer.from(payload).toString("utf-8");
-    const padding = (4 - (b64url.length % 4)) % 4;
-    b64url += "=".repeat(padding);
-    const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
-    cbor = new Uint8Array(Buffer.from(b64, "base64"));
+  switch (header) {
+    case ContainerHeader.Bytes:
+      break;
+    case ContainerHeader.Base64StdPadding:
+      cbor = new Uint8Array(Buffer.from(Buffer.from(payload).toString("utf-8"), "base64"));
+      break;
+    case ContainerHeader.Base64Url: {
+      let b64url = Buffer.from(payload).toString("utf-8");
+      const padding = (4 - (b64url.length % 4)) % 4;
+      b64url += "=".repeat(padding);
+      const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
+      cbor = new Uint8Array(Buffer.from(b64, "base64"));
+      break;
+    }
+    case ContainerHeader.BytesGzipped:
+      isGzipped = true;
+      break;
+    case ContainerHeader.Base64StdPaddingGzipped:
+      isGzipped = true;
+      cbor = new Uint8Array(Buffer.from(Buffer.from(payload).toString("utf-8"), "base64"));
+      break;
+    case ContainerHeader.Base64UrlGzipped: {
+      let b64url = Buffer.from(payload).toString("utf-8");
+      const padding = (4 - (b64url.length % 4)) % 4;
+      b64url += "=".repeat(padding);
+      const b64 = b64url.replace(/-/g, "+").replace(/_/g, "/");
+      cbor = new Uint8Array(Buffer.from(b64, "base64"));
+      isGzipped = true;
+      break;
+    }
+    default:
+      throw new Error(`unknown container header 0x${header.toString(16).padStart(2, "0")}`);
   }
 
-  // §2.2: Decompress if gzipped
   if (isGzipped) {
     cbor = await gunzipAsync(cbor);
   }
@@ -146,8 +158,12 @@ export async function containerFromBytes(bytes: Uint8Array): Promise<Uint8Array[
   // §2.1: Decode CBOR and extract tokens from "ctn-v1" key
   const decoded = dagCbor.decode(cbor);
 
-  if (typeof decoded !== "object" || decoded === null || !("ctn-v1" in decoded)) {
-    throw new Error('container must have "ctn-v1" key');
+  if (typeof decoded !== "object" || decoded === null || Array.isArray(decoded)) {
+    throw new Error('container must be a CBOR map with exactly one key "ctn-v1"');
+  }
+  const keys = Object.keys(decoded as Record<string, unknown>);
+  if (keys.length !== 1 || !Object.prototype.hasOwnProperty.call(decoded, "ctn-v1")) {
+    throw new Error('container must be a CBOR map with exactly one key "ctn-v1"');
   }
 
   const tokens = (decoded as Record<string, any>)["ctn-v1"];
