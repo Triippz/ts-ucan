@@ -42,11 +42,15 @@ export function delegationPayloadToIpld<D extends Did>(p: DelegationPayload<D>):
     ["cmd", p.command.toString()],
     ["pol", p.policy.map(predicateToIpld)],
     ["exp", p.expiration === null ? null : p.expiration.toIpld()],
-    ["meta", p.meta],
     ["nonce", p.nonce.toIpld()],
   ];
+  // meta is optional; an empty map is omitted from the wire form
+  // (delegation spec payload table; official 1.0.0 fixture bytes omit it).
+  if (p.meta.size > 0) {
+    entries.push(["meta", p.meta]);
+  }
   if (p.notBefore !== null) {
-    entries.splice(6, 0, ["nbf", p.notBefore.toIpld()]);
+    entries.push(["nbf", p.notBefore.toIpld()]);
   }
   return new Map<string, Ipld>(entries);
 }
