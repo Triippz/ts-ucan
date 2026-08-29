@@ -1,45 +1,91 @@
 /**
- * Envelope module (Lane E).
- *
- * Placeholder file created by Lane C.
- * To be implemented by Lane E (envelope.rs).
+ * Envelope module.
  */
 
 import type { Ipld } from "../ipld.js";
-import type { Verify } from "@ucans/varsig";
-import type { TryFromTags } from "@ucans/varsig";
+import { Varsig, type TryFromTags, type Verify } from "@ucans/varsig";
+import { tagOf } from "./payloadTag.js";
 
-export interface PayloadTag {
-  specId: string;
-  version: string;
-}
-
-export function tagOf(t: PayloadTag): string {
-  return `ucan/${t.specId}@${t.version}`;
-}
+export { tagOf } from "./payloadTag.js";
+export type { PayloadTag } from "./payloadTag.js";
 
 export interface EnvelopePayload<V extends Verify<any>, T> {
-  header: any; // Varsig<V>
-  payload: T;
+  readonly header: Varsig<V>;
+  readonly payload: T;
 }
 
 export interface Envelope<V extends Verify<any>, T> {
-  signature: Uint8Array;
-  payload: EnvelopePayload<V, T>;
+  readonly signature: Uint8Array;
+  readonly payload: EnvelopePayload<V, T>;
 }
 
 export function envelopeToIpld<V extends Verify<any>, T>(
   e: Envelope<V, T>,
-  tag: PayloadTag,
-  payloadToIpld: (t: T) => Ipld
+  tag: import("./payloadTag.js").PayloadTag,
+  payloadToIpld: (t: T) => Ipld,
 ): Ipld {
-  throw new Error("Not yet implemented");
+  return [
+    e.signature,
+    new Map<string, Ipld>([
+      ["h", e.payload.header.encode()],
+      [tagOf(tag), payloadToIpld(e.payload.payload)],
+    ]),
+  ];
 }
 
 export function envelopeFromIpld<V extends Verify<any>, T>(
   ipld: Ipld,
   ipldToPayload: (i: Ipld) => T,
-  tryFromTags: TryFromTags<V>
+  tryFromTags: TryFromTags<V>,
 ): Envelope<V, T> {
-  throw new Error("Not yet implemented");
+  if (!Array.isArray(ipld) || ipld.length !== 2) {
+    throw new Error("expected envelope to be a 2-tuple");
+  }
+
+  const [signatureIpld, payloadIpld] = ipld;
+  if (!(signatureIpld instanceof Uint8Array)) {
+    throw new Error("expected signature to be bytes");
+  }
+  if (!(payloadIpld instanceof Map)) {
+    throw new Error("expected envelope payload to be a map");
+  }
+
+  let headerBytes: Uint8Array | undefined;
+  let payloadValue: Ipld | undefined;
+  let sawPayload = false;
+
+  for (const [key, value] of payloadIpld) {
+    if (key === "h") {
+      if (headerBytes !== undefined) {
+        throw new Error("duplicate field h");
+      }
+      if (!(value instanceof Uint8Array)) {
+        throw new Error("expected varsig header to be bytes");
+      }
+      headerBytes = value;
+      continue;
+    }
+
+    if (sawPayload) {
+      throw new Error("multiple payload fields");
+    }
+    sawPayload = true;
+    payloadValue = value;
+  }
+
+  if (headerBytes === undefined) {
+    throw new Error("missing field h");
+  }
+  if (!sawPayload) {
+    throw new Error("missing payload");
+  }
+
+  const header = Varsig.decode(headerBytes, tryFromTags);
+  return {
+    signature: signatureIpld,
+    payload: {
+      header,
+      payload: ipldToPayload(payloadValue!),
+    },
+  };
 }

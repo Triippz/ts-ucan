@@ -1,8 +1,5 @@
 /**
- * Delegation store module (Lane E).
- *
- * Placeholder file created by Lane C.
- * To be implemented by Lane E (delegation/store.rs).
+ * Delegation store helpers.
  */
 
 import { CID } from "multiformats/cid";
@@ -16,26 +13,36 @@ export interface DelegationStore<D extends Did = Did> {
 
 export async function insert<D extends Did>(
   store: DelegationStore<D>,
-  d: Delegation<D>
+  d: Delegation<D>,
 ): Promise<CID> {
-  throw new Error("Not yet implemented");
+  const cid = d.toCid();
+  await store.insertByCid(cid, d);
+  return cid;
 }
 
 export class MapDelegationStore<D extends Did = Did> implements DelegationStore<D> {
-  private map = new Map<string, Delegation<D>>();
+  private readonly map = new Map<string, Delegation<D>>();
 
   async getAll(cids: CID[]): Promise<Delegation<D>[]> {
-    throw new Error("Not yet implemented");
+    const delegations: Delegation<D>[] = [];
+    for (const cid of cids) {
+      const delegation = this.map.get(cid.toString());
+      if (delegation === undefined) {
+        throw new MissingError(cid);
+      }
+      delegations.push(delegation);
+    }
+    return delegations;
   }
 
   async insertByCid(cid: CID, delegation: Delegation<D>): Promise<void> {
-    throw new Error("Not yet implemented");
+    this.map.set(cid.toString(), delegation);
   }
 }
 
 export class MissingError extends Error {
   constructor(readonly cid: CID) {
-    super(`missing delegation: ${cid}`);
+    super(`delegation with cid ${cid} is missing`);
     this.name = "MissingError";
   }
 }
