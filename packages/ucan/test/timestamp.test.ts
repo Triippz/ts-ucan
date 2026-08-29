@@ -2,7 +2,7 @@
  * Timestamp tests.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { Timestamp, OutOfRangeError, TimestampFromIpldError } from "../src/time/index.js";
 
 describe("Timestamp", () => {

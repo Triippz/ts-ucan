@@ -5,7 +5,6 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { Invocation } from "../src/invocation/index.js";
 import { InvocationBuilder } from "../src/index.js";
 import { Ed25519Signer, Ed25519Did } from "../src/did.js";
 

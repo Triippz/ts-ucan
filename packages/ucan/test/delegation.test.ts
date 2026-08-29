@@ -4,14 +4,12 @@
  * Ported from ucan/src/delegation.rs
  */
 
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect } from "vitest";
 import { Delegation } from "../src/delegation/index.js";
 import { DelegationBuilder } from "../src/index.js";
 import { Ed25519Signer, Ed25519Did } from "../src/did.js";
-import { Command } from "../src/command.js";
 import { DelegatedSubject } from "../src/delegation/subject.js";
-import { ipldFromDagCbor, ipldToDagCbor } from "../src/ipld.js";
-import { Nonce } from "../src/crypto/nonce.js";
+import { ipldFromDagCbor } from "../src/ipld.js";
 
 function base64ToBytes(b64: string): Uint8Array {
   const binaryString = atob(b64);
@@ -67,7 +65,6 @@ describe("Delegation", () => {
 
   it("delegation_payload_any_subject_serializes_to_null", () => {
     const publicKey = new Uint8Array(32).fill(0);
-    const iss = new Ed25519Did(publicKey);
     const aud = new Ed25519Did(publicKey);
 
     const builder = new DelegationBuilder()

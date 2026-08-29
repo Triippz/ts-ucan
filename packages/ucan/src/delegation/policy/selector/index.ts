@@ -7,7 +7,6 @@
 import type { Ipld } from "../../../ipld.js";
 import type { Filter } from "./filter.js";
 import { filterToString, filterIsDotField, parseSelector as _parseSelector } from "./filter.js";
-import { SelectorError, ipldToSelectorError, selectorErrorToIpld } from "./select.js";
 
 export { SelectorError, ipldToSelectorError, selectorErrorToIpld } from "./select.js";
 export type { SelectorErrorReason } from "./error.js";

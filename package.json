@@ -1,12 +1,12 @@
 {
   "name": "ucans",
   "description": "TypeScript implementation of UCANs",
-  "author": "Daniel Holmgren <daniel@fission.codes>",
+  "author": "Mark Tripoli",
   "repository": {
     "type": "git",
-    "url": "https://github.com/ucan-wg/ts-ucan"
+    "url": "git+https://github.com/MarkTripoli/ts-ucan.git"
   },
-  "homepage": "https://guide.fission.codes",
+  "homepage": "https://github.com/MarkTripoli/ts-ucan",
   "license": "Apache-2.0",
   "engines": {
     "node": ">=18"
@@ -14,7 +14,8 @@
   "scripts": {
     "build": "tsc -p packages/varsig && tsc -p packages/ucan",
     "test": "npm --workspace=@ucans/varsig test && npm --workspace=@ucans/ucan test",
-    "prepare": "git config core.hooksPath .githooks"
+    "prepare": "git config core.hooksPath .githooks",
+    "lint": "eslint ."
   },
   "private": true,
   "workspaces": [
@@ -22,8 +23,13 @@
   ],
   "devDependencies": {
     "@noble/hashes": "^1.8.0",
+    "eslint": "^10.9.1",
     "typescript": "^5",
+    "typescript-eslint": "^8.68.0",
     "vitest": "^3"
   },
-  "type": "module"
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/MarkTripoli/ts-ucan/issues"
+  }
 }

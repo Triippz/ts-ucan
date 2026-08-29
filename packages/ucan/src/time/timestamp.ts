@@ -11,7 +11,7 @@ import type { Ipld } from "../ipld.js";
 import {
   OutOfRangeError,
   TimestampFromIpldError,
-  TimeBoundError,
+  
 } from "./error.js";
 
 const MAX_SAFE_TIMESTAMP = 0x001f_ffff_ffff_ffff;

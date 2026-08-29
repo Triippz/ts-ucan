@@ -1,0 +1,6 @@
+#!/bin/sh
+# Lint before every commit
+npm run lint || {
+  echo "pre-commit: eslint failed — fix errors or run 'npx eslint . --fix'" >&2
+  exit 1
+}

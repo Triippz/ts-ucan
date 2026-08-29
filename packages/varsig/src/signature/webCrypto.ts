@@ -1,5 +1,4 @@
 import type { TryFromTags } from "../header.js";
-import type { Ipld } from "../ipld.js";
 import { ed25519 } from "@noble/curves/ed25519";
 import { p256 } from "@noble/curves/p256";
 import { p384 } from "@noble/curves/p384";

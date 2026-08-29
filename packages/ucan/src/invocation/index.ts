@@ -13,11 +13,11 @@ import { Timestamp } from "../time/index.js";
 import type { PayloadTag } from "../envelope/index.js";
 import { envelopeFromIpld, envelopeToIpld, type Envelope } from "../envelope/index.js";
 import { toDagCborCid } from "../cid.js";
-import { ed25519TryFromTags, Varsig } from "@ucans/varsig";
+import { ed25519TryFromTags } from "@ucans/varsig";
 import type { Delegation } from "../delegation/index.js";
 import type { DelegationStore } from "../delegation/store.js";
 import { subjectAllows } from "../delegation/subject.js";
-import { runPredicate, RunError, type Predicate } from "../delegation/policy/index.js";
+import { runPredicate, RunError } from "../delegation/policy/index.js";
 import { promisedToIpld, promisedToWireIpld, wireIpldToPromised, type Promised, WaitingOnError } from "../promise.js";
 import { InvocationBuilder } from "./builder.js";
 

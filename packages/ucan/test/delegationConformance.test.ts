@@ -7,7 +7,6 @@
 import { describe, it, expect } from "vitest";
 import { Delegation } from "../src/delegation/index.js";
 import delegationFixture from "./fixtures/delegation.json" assert { type: "json" };
-import { ipldFromDagCbor } from "../src/ipld.js";
 
 function base64ToBytes(b64: string): Uint8Array {
   const binaryString = atob(b64);

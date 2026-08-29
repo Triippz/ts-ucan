@@ -319,7 +319,7 @@ function parseDotAlphaField(input: string, pos: number): ParseResult<Filter> {
 function parseDotUnderscoreField(input: string, pos: number): ParseResult<Filter> {
   let p = tag("._", input, pos);
   if (p === null || p >= input.length || !isAlnum(input.charCodeAt(p))) return null;
-  let start = p;
+  const start = p;
   while (p < input.length && isAlnum(input.charCodeAt(p))) p++;
   return [{ kind: "field", key: "_" + input.slice(start, p) }, p];
 }

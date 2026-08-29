@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { ipldToDelegationPayload, ipldToSubject, subjectToIpld } from "../src/delegation/subject.js";
+import { ipldToSubject, subjectToIpld } from "../src/delegation/subject.js";
 import { ipldFromDagCbor, ipldToDagCbor } from "../src/ipld.js";
 import type { DelegatedSubject } from "../src/delegation/subject.js";
 import type { Ed25519Did } from "../src/did.js";

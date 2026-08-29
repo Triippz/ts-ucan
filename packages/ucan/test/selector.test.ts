@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { Selector, ParseError } from "../src/index.js";
-import type { Filter } from "../src/index.js";
 
 describe("Selector.isRelated", () => {
   it("treats prefix selectors as related", () => {

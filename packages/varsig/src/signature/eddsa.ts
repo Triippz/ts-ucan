@@ -1,5 +1,4 @@
 import { ed25519 } from "@noble/curves/ed25519";
-import type { Verify } from "../verify.js";
 import { defaultTryVerify, VerificationError } from "../verify.js";
 import type { Sign } from "../signer.js";
 import { defaultTrySign } from "../signer.js";
