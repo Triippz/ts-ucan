@@ -1,6 +1,9 @@
 /**
- * Build a delegation, encode it to its DAG-CBOR wire form, decode it back,
- * and confirm the roundtrip is byte-exact.
+ * Delegation roundtrip: Alice grants Bob a constrained delegation, then we
+ * encode and decode it to prove the wire form preserves the same authority.
+ *
+ * Alice is both the issuer and subject; Bob is the audience.
+ * This example proves the DAG-CBOR bytes roundtrip without changing the CID.
  *
  * Run (after `npm run build` at the repo root):
  *   node examples/01-delegation-roundtrip.ts
@@ -23,8 +26,8 @@ function newSigner(): Ed25519Signer {
 const alice = newSigner();
 const bob = newSigner();
 
-// Alice delegates "/crud/create" over her own subject to Bob,
-// constrained by a policy: the invocation's .status argument must equal "draft".
+// Create fresh signers so the delegation is the only moving part.
+// Alice grants Bob /crud/create, but only when the invocation stays in draft.
 const delegation = new DelegationBuilder()
   .issuer(alice)
   .audience(bob.did)
@@ -38,10 +41,11 @@ console.log("audience :", delegation.audience.toString());
 console.log("command  :", delegation.command.toString());
 console.log("cid      :", delegation.toCid().toString());
 
-// Wire roundtrip
+// Serialize the delegation the same way it would travel over the wire.
 const bytes = delegation.encode();
 console.log("encoded  :", bytes.length, "bytes of DAG-CBOR");
 
+// Decode on the other side and verify the authority stayed intact.
 const decoded = Delegation.decode(bytes);
 assert.equal(decoded.issuer.toString(), delegation.issuer.toString());
 assert.equal(decoded.command.toString(), "/crud/create");

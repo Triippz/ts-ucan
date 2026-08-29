@@ -1,9 +1,11 @@
 /**
  * UCAN WG container v0.1.0 transport.
  *
- * Bundles signed tokens for NATS, AMQP, gRPC, files, websockets, or any other
- * byte pipe. This example shows both the raw-bytes and base64-url container
- * variants, then unpacks them on the receiving side.
+ * Bundle a delegation and invocation for a byte pipe, then unpack them on the
+ * receiving side.
+ * This shows both raw-bytes and base64-url container variants.
+ * The receiver restores the tokens, checks the chain, and keeps the UCAN
+ * authority intact across transport.
  *
  * Run:
  *   node examples/06-container-transport.ts
@@ -81,6 +83,7 @@ async function unpackAndCheck(label: string, wire: Uint8Array, originalDelegatio
 
 const alice = signer(1);
 const bob = signer(2);
+// Alice grants Bob project-creation authority with a draft-name policy.
 const delegation = new DelegationBuilder()
   .issuer(alice)
   .audience(bob.did)
@@ -89,6 +92,7 @@ const delegation = new DelegationBuilder()
   .policy([ipldToPredicate(["like", ".name", "demo-*"])])
   .tryBuild();
 
+// Bob invokes with that proof on Alice's subject.
 const invocation = new InvocationBuilder()
   .issuer(bob)
   .audience(alice.did)
@@ -101,10 +105,12 @@ const invocation = new InvocationBuilder()
   .proofs([delegation.toCid()])
   .tryBuild();
 
+// Pack the signed tokens into raw container bytes.
 const rawContainer = await containerToBytes([delegation.encode(), invocation.encode()]);
 console.log("raw container:", rawContainer.length, "bytes");
 await unpackAndCheck("raw bytes", rawContainer, delegation, invocation);
 
+// Pack the same container as text for string-only transports.
 const base64Container = await containerToBase64Url([delegation.encode(), invocation.encode()]);
 const transportedText = Buffer.from(base64Container).toString("utf8");
 const textWire = new Uint8Array(Buffer.from(transportedText, "utf8"));

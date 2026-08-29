@@ -1,6 +1,9 @@
 /**
- * Full authorization flow: delegation, invocation, policy enforcement, and
- * an expired-delegation branch.
+ * End-to-end authorization: a valid delegation passes, a policy mismatch
+ * fails, and an expired proof fails.
+ *
+ * Alice delegates to Bob; Bob invokes on Alice's behalf.
+ * The store and checker verify the delegation chain, predicate, and time bounds.
  *
  * Run:
  *   node examples/02-invocation-and-check.ts
@@ -31,7 +34,9 @@ function specific(did: Ed25519Signer["did"]) {
 const alice = signer(1);
 const bob = signer(2);
 
+// Deterministic actors keep the walkthrough stable.
 const delegationStore = new MapDelegationStore();
+// Alice grants Bob create rights, limited to draft titles and a short lifetime.
 const freshDelegation = new DelegationBuilder()
   .issuer(alice)
   .audience(bob.did)
@@ -45,6 +50,7 @@ const freshDelegation = new DelegationBuilder()
 await insert(delegationStore, freshDelegation);
 console.log("delegation:", freshDelegation.toCid().toString());
 
+// Bob invokes with a title that satisfies the delegated policy.
 const successPayload = new InvocationBuilder()
   .issuer(bob)
   .audience(alice.did)
@@ -60,6 +66,7 @@ const successPayload = new InvocationBuilder()
 await check(successPayload, delegationStore);
 console.log("success   : check() accepted the delegated invocation ✓");
 
+// Same chain, but the invocation no longer matches the policy.
 const policyViolation = new InvocationBuilder()
   .issuer(bob)
   .audience(alice.did)
@@ -71,6 +78,7 @@ const policyViolation = new InvocationBuilder()
   ]))
   .proofs([freshDelegation.toCid()]);
 
+// check() should fail because the predicate rejects the title.
 await assert.rejects(
   check(policyViolation.build(), delegationStore),
   (error: unknown) =>
@@ -82,6 +90,7 @@ await assert.rejects(
 console.log("policy    : rejected a title that missed the predicate ✓");
 
 const expiredDelegationStore = new MapDelegationStore();
+// Rebuild the same delegation shape, but with an already expired token.
 const expiredDelegation = new DelegationBuilder()
   .issuer(alice)
   .audience(bob.did)
@@ -92,6 +101,7 @@ const expiredDelegation = new DelegationBuilder()
   .tryBuild();
 await insert(expiredDelegationStore, expiredDelegation);
 
+// The invocation still looks valid, but its proof is stale.
 const expiredPayload = new InvocationBuilder()
   .issuer(bob)
   .audience(alice.did)
@@ -103,8 +113,7 @@ const expiredPayload = new InvocationBuilder()
   ]))
   .proofs([expiredDelegation.toCid()]);
 
-// check() enforces time bounds per the delegation spec's Token Validation
-// rules: proofs must be within [nbf, exp] at execution time.
+// check() also enforces exp at execution time.
 await assert.rejects(
   () => check(expiredPayload.build(), expiredDelegationStore),
   (e: Error) => e.name === "StoredCheckError",
