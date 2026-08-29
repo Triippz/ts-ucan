@@ -1,5 +1,4 @@
-node_modules
-.cache
-dist
-.tool-versions
-/packages/ucans/README.md # copied from root
+node_modules/
+dist/
+.reference/
+*.tsbuildinfo
