@@ -66,7 +66,7 @@ export type { Ed25519DidFromStrErrorReason, VarsigConfigOf } from "./did.js";
 
 // Unset & sealed (builder type markers)
 export { Unset } from "./unset.js";
-export type { DidOrUnset, DelegatedSubjectOrUnset, CommandOrUnset, ProofsOrUnset } from "./sealed.js";
+export type { DidOrUnset, DidSignerOrUnset, DelegatedSubjectOrUnset, CommandOrUnset, ProofsOrUnset } from "./sealed.js";
 
 // Wave 2 modules (created by other lanes, barrel re-exports them here)
 
@@ -106,11 +106,9 @@ export { MapDelegationStore, insert, MissingError } from "./delegation/store.js"
 export type {
   Predicate,
   Filter,
-  Selector,
-  SelectorError,
-  Select,
   Selectable,
 } from "./delegation/policy/index.js";
+export { Selector, SelectorError, Select } from "./delegation/policy/index.js";
 export {
   runPredicate,
   glob,
@@ -128,18 +126,6 @@ export {
 } from "./delegation/policy/index.js";
 
 // Invocation (Lane I)
-export type {
-  InvocationPayload,
-  Invocation,
-} from "./invocation/index.js";
-export {
-  invocationPayloadTag,
-  invocationPayloadToIpld,
-  ipldToInvocationPayload,
-  invocationPayloadToCid,
-  check,
-  syntaticChecks,
-  CheckFailed,
-  StoredCheckError,
-} from "./invocation/index.js";
+export type { InvocationPayload } from "./invocation/index.js";
+export { Invocation, invocationPayloadTag, invocationPayloadToIpld, ipldToInvocationPayload, invocationPayloadToCid, check, syntaticChecks, CheckFailed, StoredCheckError } from "./invocation/index.js";
 export { InvocationBuilder } from "./invocation/builder.js";

@@ -220,7 +220,7 @@ export function promisedToWireIpld(p: Promised): Ipld {
     case "string":
       return new Map<string, Ipld>([["String", p.value]]);
     case "bytes":
-      return new Map<string, Ipld>([["Bytes", p.value]]);
+      return new Map<string, Ipld>([["Bytes", Array.from(p.value)]]);
     case "link":
       return new Map<string, Ipld>([["Link", p.cid as any]]);
     case "waitOk":
@@ -249,7 +249,7 @@ export function promisedToWireIpld(p: Promised): Ipld {
  * Handles all variants, including the string "Null" for the unit variant.
  */
 export function wireIpldToPromised(i: Ipld): Promised {
-  if (i === "Null" || i === null) {
+  if (i === "Null") {
     return { kind: "null" };
   }
 
@@ -280,8 +280,8 @@ export function wireIpldToPromised(i: Ipld): Promised {
         }
         break;
       case "Bytes":
-        if (value instanceof Uint8Array) {
-          return { kind: "bytes", value };
+        if (Array.isArray(value) && value.every((v) => typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 0xff)) {
+          return { kind: "bytes", value: Uint8Array.from(value) };
         }
         break;
       case "Link": {

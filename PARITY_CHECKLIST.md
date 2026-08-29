@@ -8,8 +8,8 @@ evidence (file + test). Reference commit: `59ff9b9`.
 ### varsig/src/lib.rs
 | Rust item | Target TS item | Status |
 |---|---|---|
-| module re-exports (`pub use header::Varsig`, pub mods) | packages/varsig/src/index.ts re-exports | todo |
-| doc example (sign/verify roundtrip) | varsig/test/header.test.ts `docExampleRoundtrip` | todo |
+| module re-exports (`pub use header::Varsig`, pub mods) | packages/varsig/src/index.ts re-exports | done |
+| doc example (sign/verify roundtrip) | varsig/test/header.test.ts `docExampleRoundtrip` | done |
 
 ### varsig/src/header.rs
 | Rust item | Target TS item | Status |
@@ -134,7 +134,7 @@ evidence (file + test). Reference commit: `59ff9b9`.
 | Rust item | Target TS item | Status |
 |---|---|---|
 | enum `Number` (Float, Integer) | `UcanNumber` union | todo |
-| `impl PartialOrd for Number` (f64::MAX bound logic) | `numberCompare` | todo |
+| `impl PartialOrd for Number` (f64::MAX bound logic) | `numberCompare` | done |
 | `From<Number> for Ipld` | `numberToIpld` | todo |
 | `TryFrom<Ipld> for Number` | `numberFromIpld` | todo |
 | struct `NotANumber` error | `NotANumberError` | todo |
@@ -148,7 +148,7 @@ evidence (file + test). Reference commit: `59ff9b9`.
 ### ucan/src/sealed.rs
 | Rust item | Target TS item | Status |
 |---|---|---|
-| traits DidOrUnset / DidSignerOrUnset / DelegatedSubjectOrUnset / CommandOrUnset / ProofsOrUnset (+impls) | type aliases in sealed.ts (`D | Unset` unions) used by builder generics | todo |
+| traits DidOrUnset / DidSignerOrUnset / DelegatedSubjectOrUnset / CommandOrUnset / ProofsOrUnset (+impls) | type aliases in sealed.ts (`D | Unset` unions) used by builder generics | done |
 
 ### ucan/src/collections.rs
 | Rust item | Target TS item | Status |
@@ -180,7 +180,7 @@ evidence (file + test). Reference commit: `59ff9b9`.
 | `From<Vec<String>>`/`From<Command> for Vec<String>` | constructor / `.segments` | n/a — trivial |
 | `impl Display` | `.toString()` | todo |
 | `impl Serialize`/`Deserialize`/`FromStr` | `toIpld`/`fromIpld`/`parse` | todo |
-| tests: test_valid_root_command, test_valid_single_segment, test_valid_two_segments, test_valid_many_segments, test_valid_unicode, test_invalid_missing_leading_slash, test_invalid_trailing_slash, test_invalid_trailing_slash_nested, test_invalid_uppercase, test_invalid_mixed_case, test_invalid_empty_segment, test_json_roundtrip, test_json_roundtrip_root, test_cbor_roundtrip, test_cbor_roundtrip_root, test_deserialize_rejects_missing_leading_slash, test_deserialize_rejects_trailing_slash, test_deserialize_rejects_uppercase, test_deserialize_rejects_empty_segment, test_starts_with_root_matches_all, test_starts_with_prefix_matches, test_starts_with_different_prefix_no_match, test_starts_with_similar_prefix_no_match | command.test.ts (23 tests, same names camelCased) | todo |
+| tests: test_valid_root_command, test_valid_single_segment, test_valid_two_segments, test_valid_many_segments, test_valid_unicode, test_invalid_missing_leading_slash, test_invalid_trailing_slash, test_invalid_trailing_slash_nested, test_invalid_uppercase, test_invalid_mixed_case, test_invalid_empty_segment, test_json_roundtrip, test_json_roundtrip_root, test_cbor_roundtrip, test_cbor_roundtrip_root, test_deserialize_rejects_missing_leading_slash, test_deserialize_rejects_trailing_slash, test_deserialize_rejects_uppercase, test_deserialize_rejects_empty_segment, test_starts_with_root_matches_all, test_starts_with_prefix_matches, test_starts_with_different_prefix_no_match, test_starts_with_similar_prefix_no_match | command.test.ts (23 tests, same names camelCased) | done |
 
 ### ucan/src/crypto.rs
 | Rust item | Target TS item | Status |
@@ -213,7 +213,7 @@ evidence (file + test). Reference commit: `59ff9b9`.
 | `Timestamp::five_minutes_from_now` | `Timestamp.fiveMinutesFromNow` | todo |
 | `Timestamp::five_years_from_now` | `Timestamp.fiveYearsFromNow` | todo |
 | `Timestamp::to_unix` | `.toUnix()` | todo |
-| `Timestamp::postel_unix` | `Timestamp.postelUnix(number \| bigint)` — no 2^53 bound; bigint-capable storage preserves values through u64::MAX (timestamp.rs:114) | todo |
+| `Timestamp::postel_unix` | `Timestamp.postelUnix(number \| bigint)` — no 2^53 bound; bigint-capable storage preserves values through u64::MAX (timestamp.rs:114) | done |
 | wasm32 `from_date`/`to_date` (js_sys) | `Timestamp.fromDate`/`.toDate()` (native Date; ms-bound check ported) | todo |
 | `TryFrom<SystemTime>` / `From<Timestamp> for SystemTime` | fromDate/toDate | n/a — merged above |
 | `From<Timestamp> for Ipld` / `TryFrom<Ipld>` | `.toIpld` / `Timestamp.fromIpld` | todo |
@@ -233,7 +233,7 @@ evidence (file + test). Reference commit: `59ff9b9`.
 | derived `Serialize`/`Deserialize` for `Promise<T,E>` (promise.rs:9-10; externally tagged) | `promiseToWireIpld`/`wireIpldToPromise` (parameterized by T/E converters) | todo |
 | enum `Promised` (12 variants) | `Promised` union | todo |
 | `TryFrom<&Promised> for Ipld` | `promisedToIpld` (throws WaitingOnError) | todo |
-| serde `Serialize`/`Deserialize` for Promised (promise.rs:33-55; externally tagged for EVERY variant) | `promisedToWireIpld`/`wireIpldToPromised` — `Bool(true)` → `{"Bool": true}`, unit `Null` → `"Null"`; locked by Rust-derived dag-cbor byte fixture | todo |
+| serde `Serialize`/`Deserialize` for Promised (promise.rs:33-55; externally tagged for EVERY variant) | `promisedToWireIpld`/`wireIpldToPromised` — `Bool(true)` → `{"Bool": true}`, unit `Null` → `"Null"`; locked by Rust-derived dag-cbor byte fixture | done |
 | enum `WaitingOn` (WaitOk/WaitErr/WaitAny) | `WaitingOnError { reason, cid }` | todo |
 
 ### ucan/src/did.rs
@@ -276,9 +276,9 @@ evidence (file + test). Reference commit: `59ff9b9`.
 | `impl Serialize for DelegationPayload` (serde rename iss/aud/sub/cmd/pol/exp/nbf/meta/nonce; `nbf` key ALWAYS emitted — int or null, no skip_serializing_if, delegation.rs:130-151) | `delegationPayloadToIpld` | todo |
 | `impl Deserialize for DelegationPayload` (custom visitor: dup keys, unknown keys, strict nonce-bytes, nbf missing or null → null (delegation.rs:245, :391), meta optional, exp required) | `ipldToDelegationPayload` with identical rules | todo |
 | `impl PayloadTag for DelegationPayload` ("dlg","1.0.0-rc.1") | `delegationPayloadTag` | todo |
-| test `issuer_round_trip` | delegation.test.ts | todo |
-| test `delegation_b64_fixture_roundtrip` (byte-exact) | delegation.test.ts | todo |
-| test `delegation_payload_any_subject_serializes_to_null` | delegation.test.ts | todo |
+| test `issuer_round_trip` | delegation.test.ts | done |
+| test `delegation_b64_fixture_roundtrip` (byte-exact) | delegation.test.ts | done |
+| test `delegation_payload_any_subject_serializes_to_null` | delegation.test.ts | done |
 
 ### ucan/src/delegation/subject.rs
 | Rust item | Target TS item | Status |
@@ -289,7 +289,7 @@ evidence (file + test). Reference commit: `59ff9b9`.
 | `From<D> for DelegatedSubject<D>` | literal construction | n/a — trivial |
 | `impl Display` (Any → "Null") | `subjectToString` | todo |
 | `impl Serialize` (Any → null) / `Deserialize` (null/str visitor) | `subjectToIpld` / `ipldToSubject` | todo |
-| tests any_serializes_to_null (0xf6), any_deserializes_from_null, any_roundtrip, specific_roundtrip | subject.test.ts (4 tests) | todo |
+| tests any_serializes_to_null (0xf6), any_deserializes_from_null, any_roundtrip, specific_roundtrip | subject.test.ts (4 tests) | done |
 
 ### ucan/src/delegation/builder.rs
 | Rust item | Target TS item | Status |
@@ -337,7 +337,7 @@ evidence (file + test). Reference commit: `59ff9b9`.
 ### ucan/src/delegation/policy/selector.rs
 | Rust item | Target TS item | Status |
 |---|---|---|
-| struct `Selector(Vec<Filter>)` + `new` + `is_related` | class `Selector` — `constructor(filters: Filter[] = [])`; `new Selector()` = identity selector (selector.rs:35-36) | todo |
+| struct `Selector(Vec<Filter>)` + `new` + `is_related` | class `Selector` — `constructor(filters: Filter[] = [])`; `new Selector()` = identity selector (selector.rs:35-36) | done |
 | `impl Display` | `.toString()` | todo |
 | `impl FromStr` (nom grammar: leading dot, `..` rejection, `?` prefixes, try-dot-field) | `Selector.fromString` hand parser | todo |
 | `impl Serialize`/`Deserialize` (string form) | toIpld/fromIpld = string | todo |
@@ -380,9 +380,9 @@ evidence (file + test). Reference commit: `59ff9b9`.
 | Rust item | Target TS item | Status |
 |---|---|---|
 | fn `resolve_slice_indices` | `resolveSliceIndices` | todo |
-| struct `Select<T>` + `new` + `is_related` | class `Select<T>` | todo |
-| `impl Serialize`/`Deserialize` for Select | toIpld/fromString | todo |
-| `Select::get` (try→root-retry→null semantics; bytes index→Integer; slice clamp) | `.get(ctx)` exact port | todo |
+| struct `Select<T>` + `new` + `is_related` | class `Select<T>` | done |
+| `impl Serialize`/`Deserialize` for Select | toIpld/fromString | done |
+| `Select::get` (try→root-retry→null semantics; bytes index→Integer; slice clamp) | `.get(ctx)` exact port | done |
 | `From<Select<T>> for Ipld` | `.toIpld()` (selector string) | todo |
 | `impl FromStr for Select` + struct `ParseError` wrapper | `Select.fromString` (reuses selector ParseError) | todo |
 | `impl PartialOrd for Select` | `.compare()` | todo |
@@ -401,7 +401,7 @@ evidence (file + test). Reference commit: `59ff9b9`.
 | `impl PayloadTag` ("inv","1.0.0-rc.1") | `invocationPayloadTag` | todo |
 | enum `CheckFailed` (7 variants) | `CheckFailed { reason }` | todo |
 | enum `StoredCheckError` (GetError, CheckFailed) | `StoredCheckError` | todo |
-| test `issuer_round_trip` | invocation.test.ts | todo |
+| test `issuer_round_trip` | invocation.test.ts | done |
 
 ### ucan/src/invocation/builder.rs
 | Rust item | Target TS item | Status |

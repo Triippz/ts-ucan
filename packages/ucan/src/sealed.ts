@@ -5,15 +5,16 @@
  * In TypeScript, they're just type aliases used as constraints on generics.
  */
 
-import type { Did } from "./did.js";
+import type { Did, DidSigner } from "./did.js";
 import type { Command } from "./command.js";
 import type { Unset } from "./unset.js";
 import type { CID } from "multiformats/cid";
+import type { DelegatedSubject as DelegatedSubjectType } from "./delegation/subject.js";
 
-// DelegatedSubject will be defined in delegation/index.ts (Wave 2)
-export type DelegatedSubject<D extends Did = Did> = any;
+export type DelegatedSubject<D extends Did = Did> = DelegatedSubjectType<D>;
 
 export type DidOrUnset<D extends Did = Did> = D | Unset;
+export type DidSignerOrUnset<D extends DidSigner = DidSigner> = D | Unset;
 export type DelegatedSubjectOrUnset<D extends Did = Did> = DelegatedSubject<D> | Unset;
 export type CommandOrUnset = Command | Unset;
 export type ProofsOrUnset = CID[] | Unset;

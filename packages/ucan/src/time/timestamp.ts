@@ -14,8 +14,24 @@ import {
   TimeBoundError,
 } from "./error.js";
 
-// Max safe value: 2^53 - 1 = 0x001F_FFFF_FFFF_FFFF
 const MAX_SAFE_TIMESTAMP = 0x001f_ffff_ffff_ffff;
+const MAX_U64 = (1n << 64n) - 1n;
+
+function toNonNegativeInteger(secs: number | bigint): bigint {
+  if (typeof secs === "number") {
+    if (!Number.isInteger(secs)) {
+      throw new OutOfRangeError("beforeEpoch");
+    }
+    if (!Number.isFinite(secs) || secs < 0) {
+      throw new OutOfRangeError("beforeEpoch");
+    }
+    return BigInt(secs);
+  }
+  if (secs < 0n) {
+    throw new OutOfRangeError("beforeEpoch");
+  }
+  return secs;
+}
 
 /**
  * A Unix timestamp in seconds.
@@ -35,22 +51,13 @@ export class Timestamp {
    * Throws OutOfRangeError if value exceeds bounds or is negative.
    */
   static fromUnix(secs: number | bigint): Timestamp {
-    const val = typeof secs === "bigint" ? secs : BigInt(Math.floor(secs));
-
-    if (val < 0n) {
-      throw new OutOfRangeError("beforeEpoch");
-    }
+    const val = toNonNegativeInteger(secs);
 
     if (val > BigInt(MAX_SAFE_TIMESTAMP)) {
       throw new OutOfRangeError("tooLarge");
     }
 
-    // Store as number if within safe range
-    if (val <= BigInt(Number.MAX_SAFE_INTEGER)) {
-      return new Timestamp(Number(val));
-    }
-
-    return new Timestamp(val);
+    return new Timestamp(Number(val));
   }
 
   /**
@@ -99,19 +106,13 @@ export class Timestamp {
    * Preserves values through u64::MAX as bigint.
    */
   static postelUnix(secs: number | bigint): Timestamp {
-    const val = typeof secs === "bigint" ? secs : BigInt(Math.floor(secs));
+    const val = toNonNegativeInteger(secs);
 
-    if (val < 0n) {
-      // Postel path doesn't check negative; return as-is for compatibility
-      return new Timestamp(val);
+    if (val > MAX_U64) {
+      throw new OutOfRangeError("tooLarge");
     }
 
-    // Store as number if within safe range
-    if (val <= BigInt(Number.MAX_SAFE_INTEGER)) {
-      return new Timestamp(Number(val));
-    }
-
-    return new Timestamp(val);
+    return new Timestamp(val <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(val) : val);
   }
 
   /**
@@ -155,21 +156,26 @@ export class Timestamp {
    * Uses postelUnix path (no 2^53 bound).
    */
   static fromIpld(ipld: Ipld): Timestamp {
-    if (typeof ipld === "number" || typeof ipld === "bigint") {
-      try {
-        return Timestamp.postelUnix(ipld);
-      } catch {
-        throw new TimestampFromIpldError("notATimestamp");
+    if (typeof ipld === "number") {
+      if (!Number.isInteger(ipld)) {
+        throw new TimestampFromIpldError("notAnInteger");
       }
+    } else if (typeof ipld !== "bigint") {
+      throw new TimestampFromIpldError("notAnInteger");
     }
-    throw new TimestampFromIpldError("notAnInteger");
+
+    try {
+      return Timestamp.postelUnix(ipld as number | bigint);
+    } catch {
+      throw new TimestampFromIpldError("notATimestamp");
+    }
   }
 
   /**
    * Check equality.
    */
   equals(other: Timestamp): boolean {
-    return this.secs === other.secs;
+    return this.compare(other) === 0;
   }
 
   /**
@@ -178,9 +184,8 @@ export class Timestamp {
    * Returns -1 if this < other, 0 if equal, 1 if this > other.
    */
   compare(other: Timestamp): -1 | 0 | 1 {
-    const a = typeof this.secs === "number" ? this.secs : Number(this.secs);
-    const b =
-      typeof other.secs === "number" ? other.secs : Number(other.secs);
+    const a = typeof this.secs === "number" ? BigInt(this.secs) : this.secs;
+    const b = typeof other.secs === "number" ? BigInt(other.secs) : other.secs;
 
     if (a < b) return -1;
     if (a > b) return 1;

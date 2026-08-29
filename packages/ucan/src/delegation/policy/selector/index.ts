@@ -35,8 +35,11 @@ export class Selector {
    * Check if two selectors are related (all filters match pairwise).
    */
   isRelated(other: Selector): boolean {
-    if (this.filters.length !== other.filters.length) return false;
-    return this.filters.every((f, i) => filtersEqual(f, other.filters[i]));
+    const len = Math.min(this.filters.length, other.filters.length);
+    for (let i = 0; i < len; i++) {
+      if (!filtersEqual(this.filters[i], other.filters[i])) return false;
+    }
+    return true;
   }
 
   /**

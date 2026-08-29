@@ -30,7 +30,7 @@ export type { TryFromTags } from "./header.js";
 export { MULTIHASH_TAG } from "./hash.js";
 
 // Curve
-export type { Curve } from "./curve.js";
+export type { Curve, P256, P384, P521 } from "./curve.js";
 
 // Encoding
 export { Encoding } from "./encoding.js";
@@ -45,7 +45,7 @@ export { Es512, es512TryFromTags } from "./signature/ecdsa.js";
 export { Es256k, es256kTryFromTags } from "./signature/ecdsa.js";
 
 // Signature — WebCrypto
-export type { WebCrypto } from "./signature/webCrypto.js";
+export type { WebCrypto, WebCryptoVerifier } from "./signature/webCrypto.js";
 export { webCryptoTryFromTags } from "./signature/webCrypto.js";
 
 // Signature — Common

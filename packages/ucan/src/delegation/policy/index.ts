@@ -13,7 +13,7 @@ export { Selector, parseSelector } from "./selector/index.js";
 export type { SelectorErrorReason } from "./selector/error.js";
 
 // Re-export from selector/select.ts
-export type { Select } from "./selector/select.js";
+export { Select } from "./selector/select.js";
 export { SelectorError, resolveSliceIndices, selectorErrorToIpld, ipldToSelectorError } from "./selector/select.js";
 
 // Re-export from selector/selectable.ts

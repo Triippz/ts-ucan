@@ -14,17 +14,17 @@ import { Invocation, invocationPayloadToIpld, type InvocationPayload } from "./i
 
 export class InvocationBuilder<D extends DidSigner = DidSigner> {
   constructor(
-    private readonly issuerField: D | typeof Unset = Unset,
-    private readonly audienceField: D["did"] | typeof Unset = Unset,
-    private readonly subjectField: D["did"] | typeof Unset = Unset,
-    private readonly commandField: Command | typeof Unset = Unset,
-    private readonly argumentsField: Map<string, import("../promise.js").Promised> = new Map(),
-    private readonly proofsField: CID[] | typeof Unset = Unset,
+    public issuerField: D | typeof Unset = Unset,
+    public audienceField: D["did"] | typeof Unset = Unset,
+    public subjectField: D["did"] | typeof Unset = Unset,
+    public commandField: Command | typeof Unset = Unset,
+    public argumentsField: Map<string, import("../promise.js").Promised> = new Map(),
+    public proofsField: CID[] | typeof Unset = Unset,
     public cause: CID | null = null,
-    private readonly expirationField: Timestamp | null = null,
-    private readonly issuedAtField: Timestamp | null = null,
-    private readonly metaField: Map<string, Ipld> = new Map(),
-    private readonly nonceField: Nonce | null = null,
+    public expirationField: Timestamp | null = null,
+    public issuedAtField: Timestamp | null = null,
+    public metaField: Map<string, Ipld> = new Map(),
+    public nonceField: Nonce | null = null,
   ) {}
 
   issuer(issuer: D): InvocationBuilder<D> {

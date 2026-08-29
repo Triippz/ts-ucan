@@ -68,33 +68,29 @@ export class Ed25519Did implements Did<Ed25519> {
    * Parse from DID string.
    */
   static fromString(s: string): Ed25519Did {
-    const prefix = "did:key:z";
-    if (!s.startsWith(prefix)) {
+    const parts = s.split(":");
+    if (parts.length !== 3 || parts[0] !== "did" || parts[1] !== "key") {
       throw new Ed25519DidFromStrError("invalidDidHeader");
     }
 
-    const b58Payload = s.slice(prefix.length);
+    const key = parts[2];
+    if (!key.startsWith("z")) {
+      throw new Ed25519DidFromStrError("missingBase58Prefix");
+    }
+
     let decoded: Uint8Array;
     try {
-      decoded = base58btc.baseDecode(b58Payload);
+      decoded = base58btc.baseDecode(key.slice(1));
     } catch {
       throw new Ed25519DidFromStrError("invalidBase58");
     }
 
-    if (decoded.length !== 34) {
-      throw new Ed25519DidFromStrError("invalidKey");
-    }
-
-    if (decoded[0] !== 0xed || decoded[1] !== 0x01) {
+    if (decoded.length !== 34 || decoded[0] !== 0xed || decoded[1] !== 0x01) {
       throw new Ed25519DidFromStrError("invalidKey");
     }
 
     const publicKey = decoded.slice(2, 34);
-    try {
-      return new Ed25519Did(publicKey);
-    } catch {
-      throw new Ed25519DidFromStrError("invalidKey");
-    }
+    return new Ed25519Did(publicKey);
   }
 
   /**

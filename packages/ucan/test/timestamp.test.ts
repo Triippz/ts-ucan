@@ -22,6 +22,10 @@ describe("Timestamp", () => {
       expect(() => Timestamp.fromUnix(-1)).toThrow(OutOfRangeError);
     });
 
+    it("rejects fractional timestamps", () => {
+      expect(() => Timestamp.fromUnix(1.5)).toThrow(OutOfRangeError);
+    });
+
     it("rejects timestamps > 2^53-1", () => {
       const MAX_SAFE = BigInt(0x001f_ffff_ffff_ffff);
       expect(() => Timestamp.fromUnix(MAX_SAFE + 1n)).toThrow(OutOfRangeError);
@@ -70,6 +74,13 @@ describe("Timestamp", () => {
       expect(ts1.compare(ts2)).toBe(-1);
       expect(ts2.compare(ts1)).toBe(1);
       expect(ts1.compare(ts1)).toBe(0);
+    });
+
+    it("compares number and bigint values consistently", () => {
+      const ts1 = Timestamp.fromIpld(9007199254740992n);
+      const ts2 = Timestamp.fromIpld(9007199254740993n);
+      expect(ts1.compare(ts2)).toBe(-1);
+      expect(ts2.compare(ts1)).toBe(1);
     });
 
     it("equals method works", () => {

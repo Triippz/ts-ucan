@@ -112,6 +112,20 @@ describe("test_try_verify", () => {
     // If we got here without throwing, verification passed
   });
 
+  it("docExampleRoundtrip", () => {
+    const payload: Ipld = new Map<string, Ipld>([
+      ["message", "Hello, Varsig!"],
+      ["count", 42],
+    ]);
+
+    const sk = ed25519.utils.randomPrivateKey();
+    const pk = ed25519.getPublicKey(sk);
+
+    const varsig = new Varsig(new Ed25519(), DagCborCodec);
+    const { signature } = varsig.trySign(sk, payload);
+    expect(() => varsig.tryVerify(pk, payload, signature)).not.toThrow();
+  });
+
   it("fails verification with wrong signature", () => {
     const payload: Ipld = new Map<string, Ipld>([
       ["message", "Hello, Varsig!"],

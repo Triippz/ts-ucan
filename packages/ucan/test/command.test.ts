@@ -110,6 +110,29 @@ describe("Command", () => {
     });
   });
 
+  // JSON roundtrip tests
+  describe("json roundtrips", () => {
+    it("test_json_roundtrip", () => {
+      const original = '"/msg/send"';
+      const cmd = Command.fromIpld(JSON.parse(original));
+      const serialized = JSON.stringify(cmd.toIpld());
+      expect(serialized).toBe(original);
+
+      const cmd2 = Command.fromIpld(JSON.parse(serialized));
+      expect(cmd.equals(cmd2)).toBe(true);
+    });
+
+    it("test_json_roundtrip_root", () => {
+      const original = '"/"';
+      const cmd = Command.fromIpld(JSON.parse(original));
+      const serialized = JSON.stringify(cmd.toIpld());
+      expect(serialized).toBe(original);
+
+      const cmd2 = Command.fromIpld(JSON.parse(serialized));
+      expect(cmd.equals(cmd2)).toBe(true);
+    });
+  });
+
   // Roundtrip tests
   describe("roundtrips", () => {
     it("test_cbor_roundtrip", async () => {
@@ -124,6 +147,25 @@ describe("Command", () => {
       const ipld = cmd.toIpld();
       const cmd2 = Command.fromIpld(ipld);
       expect(cmd.equals(cmd2)).toBe(true);
+    });
+  });
+
+  // Deserialization tests
+  describe("deserialization", () => {
+    it("test_deserialize_rejects_missing_leading_slash", () => {
+      expect(() => Command.fromIpld("crud")).toThrow();
+    });
+
+    it("test_deserialize_rejects_trailing_slash", () => {
+      expect(() => Command.fromIpld("/crud/")).toThrow();
+    });
+
+    it("test_deserialize_rejects_uppercase", () => {
+      expect(() => Command.fromIpld("/CRUD")).toThrow();
+    });
+
+    it("test_deserialize_rejects_empty_segment", () => {
+      expect(() => Command.fromIpld("/crud//create")).toThrow();
     });
   });
 

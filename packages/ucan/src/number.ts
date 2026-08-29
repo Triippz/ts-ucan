@@ -17,45 +17,25 @@ export type UcanNumber =
  * Returns null if comparison is undefined (e.g., NaN).
  */
 export function numberCompare(a: UcanNumber, b: UcanNumber): -1 | 0 | 1 | null {
-  const aVal = a.kind === "float" ? a.value : a.value;
-  const bVal = b.kind === "float" ? b.value : b.value;
-
-  // Both floats
   if (a.kind === "float" && b.kind === "float") {
-    if (Number.isNaN(aVal) || Number.isNaN(bVal)) return null;
-    if (aVal < bVal) return -1;
-    if (aVal > bVal) return 1;
+    if (Number.isNaN(a.value) || Number.isNaN(b.value)) return null;
+    if (a.value < b.value) return -1;
+    if (a.value > b.value) return 1;
     return 0;
   }
 
-  // Both integers
   if (a.kind === "integer" && b.kind === "integer") {
-    if (aVal < bVal) return -1;
-    if (aVal > bVal) return 1;
+    if (a.value < b.value) return -1;
+    if (a.value > b.value) return 1;
     return 0;
   }
 
-  // Float vs integer
-  const floatVal = a.kind === "float" ? (aVal as number) : (bVal as number);
-  const intVal = a.kind === "float" ? bVal : aVal;
+  const floatVal = a.kind === "float" ? a.value : b.value;
+  const intVal = a.kind === "integer" ? a.value : b.value;
 
   if (Number.isNaN(floatVal)) return null;
 
-  // Check if integer exceeds f64 bounds
-  const MAX_F64_AS_INT = BigInt("0x1FFFFFFFFFFFFF"); // 2^53 - 1
-  const MIN_F64_AS_INT = -MAX_F64_AS_INT;
-
-  const intBig = typeof intVal === "bigint" ? intVal : BigInt(intVal as number);
-
-  if (intBig > MAX_F64_AS_INT) {
-    return a.kind === "integer" ? 1 : -1;
-  }
-  if (intBig < MIN_F64_AS_INT) {
-    return a.kind === "integer" ? -1 : 1;
-  }
-
-  // Safe to convert to f64
-  const intAsFloat = Number(intBig);
+  const intAsFloat = Number(intVal);
   if (floatVal < intAsFloat) return a.kind === "float" ? -1 : 1;
   if (floatVal > intAsFloat) return a.kind === "float" ? 1 : -1;
   return 0;

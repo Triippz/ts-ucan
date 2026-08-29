@@ -106,7 +106,7 @@ export class Select<T> {
       } catch (e) {
         if (isTry && e instanceof SelectorError) {
           current = null as unknown as Ipld;
-          continue;
+          break;
         }
         throw e;
       }
@@ -120,8 +120,11 @@ export class Select<T> {
   }
 
   isRelated<U>(other: Select<U>): boolean {
-    if (this.filters.length !== other.filters.length) return false;
-    return this.filters.every((f, i) => filterEquals(f, other.filters[i]));
+    const len = Math.min(this.filters.length, other.filters.length);
+    for (let i = 0; i < len; i++) {
+      if (!filterEquals(this.filters[i], other.filters[i])) return false;
+    }
+    return true;
   }
 
   toString(): string {

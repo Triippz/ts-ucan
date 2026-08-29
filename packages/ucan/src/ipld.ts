@@ -127,9 +127,10 @@ export function ipldEqualsWithFloatNansAndInfinities(a: Ipld, b: Ipld): boolean 
     return Number.isSafeInteger(b) && a === BigInt(b);
   }
 
-  // Special case: NaN === NaN for testing
+  // Special case: NaN === NaN for testing; all infinities compare equal.
   if (typeof a === "number" && typeof b === "number") {
     if (Number.isNaN(a) && Number.isNaN(b)) return true;
+    if (!Number.isFinite(a) && !Number.isFinite(b)) return true;
     return a === b;
   }
 
