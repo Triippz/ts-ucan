@@ -318,7 +318,7 @@ describe("Policy Conformance - Invalid Scenarios", () => {
     let fixture: { args: Ipld; policies: any[][] };
 
     beforeAll(async () => {
-      fixture = await loadFixture(1, "invalid");
+      fixture = await loadFixture(0, "invalid");
     });
 
     it("test_zeroth_policy", async () => {
@@ -336,7 +336,7 @@ describe("Policy Conformance - Invalid Scenarios", () => {
     let fixture: { args: Ipld; policies: any[][] };
 
     beforeAll(async () => {
-      fixture = await loadFixture(2, "invalid");
+      fixture = await loadFixture(0, "invalid");
     });
 
     it("test_zeroth_policy", async () => {
@@ -354,7 +354,7 @@ describe("Policy Conformance - Invalid Scenarios", () => {
     let fixture: { args: Ipld; policies: any[][] };
 
     beforeAll(async () => {
-      fixture = await loadFixture(3, "invalid");
+      fixture = await loadFixture(0, "invalid");
     });
 
     it("test_zeroth_policy", async () => {

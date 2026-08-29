@@ -174,7 +174,7 @@ export function ipldEqualsWithFloatNansAndInfinities(a: Ipld, b: Ipld): boolean 
  *
  * @ipld/dag-cbor decodes maps as plain objects; we convert them to ES Map.
  */
-function objectsToMaps(value: any): Ipld {
+export function objectsToMaps(value: any): Ipld {
   if (value === null || value === undefined) return null;
   if (typeof value !== "object") return value as Ipld;
 

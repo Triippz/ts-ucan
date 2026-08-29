@@ -7,7 +7,7 @@
 import type { Ipld } from "../../ipld.js";
 import type { UcanNumber } from "../../number.js";
 import type { Collection } from "../../collection.js";
-import { ipldEquals } from "../../ipld.js";
+import { ipldEquals, objectsToMaps } from "../../ipld.js";
 import { numberCompare } from "../../number.js";
 import { collectionToVec, collectionIsEmpty } from "../../collection.js";
 import { Select, SelectorError } from "./selector/select.js";
@@ -267,6 +267,8 @@ function numberToIpldLocal(n: UcanNumber): Ipld {
  * Throws FromIpldError on failure.
  */
 export function ipldToPredicate(i: Ipld): Predicate {
+  // Normalize plain objects to Maps (JSON imports may not have been through DAG-JSON)
+  i = objectsToMaps(i);
   if (!Array.isArray(i)) throw new FromIpldError("notATuple", String(i));
 
   const arr = i as Ipld[];
