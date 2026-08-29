@@ -7,7 +7,8 @@ import { filterToString, parseFilter } from "../src/index.js";
 // - test_filter_round_trip_dag_cbor
 
 function parseFilterWithRest(input: string): [Filter, string] {
-  // ponytail: brute-force prefix scan for test-only parse() parity; upgrade if a non-consuming parser is exported.
+  // Test-only helper: brute-force prefix scan emulating Rust's non-consuming parse();
+  // replace if a non-consuming parser is ever exported from the library.
   for (let end = input.length; end >= 0; end--) {
     try {
       return [parseFilter(input.slice(0, end)), input.slice(end)];

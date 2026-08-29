@@ -1,5 +1,5 @@
 /**
- * Policy module (Lane P).
+ * Policy module.
  *
  * Port of delegation/policy.rs.
  */
@@ -27,5 +27,5 @@ export { filterToString, parseFilter, filterIsIn, filterIsDotField, filterToIpld
 // Re-export from selector/error.ts
 export { ParseError, parseErrorToIpld, ipldToParseError, selectorErrorReasonToIpld, ipldToSelectorErrorReason } from "./selector/error.js";
 
-// filterParseError alias for barrel compatibility (Lane C's barrel exports this name)
+// Alias kept for barrel compatibility (the package barrel exports this name)
 export { ParseError as filterParseError } from "./selector/error.js";

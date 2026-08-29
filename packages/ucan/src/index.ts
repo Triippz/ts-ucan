@@ -68,9 +68,7 @@ export type { Ed25519DidFromStrErrorReason, VarsigConfigOf } from "./did.js";
 export { Unset } from "./unset.js";
 export type { DidOrUnset, DidSignerOrUnset, DelegatedSubjectOrUnset, CommandOrUnset, ProofsOrUnset } from "./sealed.js";
 
-// Wave 2 modules (created by other lanes, barrel re-exports them here)
-
-// Envelope (Lane E)
+// Envelope
 export type {
   EnvelopePayload,
   Envelope,
@@ -82,7 +80,7 @@ export {
   envelopeFromIpld,
 } from "./envelope/index.js";
 
-// Delegation (Lane E)
+// Delegation
 export type {
   DelegatedSubject,
   DelegationPayload,
@@ -102,7 +100,7 @@ export { DelegationBuilder } from "./delegation/builder.js";
 export type { DelegationStore } from "./delegation/store.js";
 export { MapDelegationStore, insert, MissingError } from "./delegation/store.js";
 
-// Policy (Lane P)
+// Policy
 export type {
   Predicate,
   Filter,
@@ -125,7 +123,7 @@ export {
   filterParseError,
 } from "./delegation/policy/index.js";
 
-// Invocation (Lane I)
+// Invocation
 export type { InvocationPayload } from "./invocation/index.js";
 export { Invocation, invocationPayloadTag, invocationPayloadToIpld, ipldToInvocationPayload, invocationPayloadToCid, check, syntaticChecks, CheckFailed, StoredCheckError } from "./invocation/index.js";
 export { InvocationBuilder } from "./invocation/builder.js";
