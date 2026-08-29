@@ -207,7 +207,12 @@ function mapsToObjects(value: Ipld): any {
   }
 
   if (value instanceof Map) {
-    const obj: Record<string, any> = {};
+    // Object.create(null): a plain {} would treat a map key of "__proto__"
+    // (and other prototype members) as the special prototype setter, silently
+    // dropping that argument on encode and desyncing the signed bytes from the
+    // in-memory payload. A null-prototype object round-trips arbitrary string
+    // keys faithfully.
+    const obj: Record<string, any> = Object.create(null);
     for (const [k, v] of value) {
       obj[k] = mapsToObjects(v);
     }

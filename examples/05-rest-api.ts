@@ -13,7 +13,6 @@
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import {
-  CheckFailed,
   Command,
   DelegationBuilder,
   Delegation,
@@ -21,33 +20,19 @@ import {
   Invocation,
   InvocationBuilder,
   MapDelegationStore,
+  MapReplayStore,
   MapRevocationStore,
   RevokedError,
   StoredCheckError,
-  checkWithRevocations,
+  VerifyError,
   insert,
   ipldToPredicate,
   revoke,
+  verifyInvocation,
 } from "@marktripoli/ucan";
 
 function signer(seed: number): Ed25519Signer {
   return new Ed25519Signer(new Uint8Array(32).fill(seed));
-}
-
-function payloadOf(invocation: Invocation) {
-  return {
-    issuer: invocation.issuer,
-    audience: invocation.audience,
-    subject: invocation.subject,
-    command: invocation.command,
-    arguments: invocation.arguments,
-    proofs: invocation.proofs,
-    cause: invocation.cause,
-    issuedAt: invocation.issuedAt,
-    expiration: invocation.expiration,
-    meta: invocation.meta,
-    nonce: invocation.nonce,
-  };
 }
 
 const service = signer(10);
@@ -57,6 +42,9 @@ const notePolicy = ipldToPredicate(["like", ".title", "draft:*"]);
 
 const delegationStore = new MapDelegationStore();
 const revocationStore = new MapRevocationStore();
+// Persistent replay store: the executor MUST reject a repeated invocation CID
+// (spec §Replay Attack Prevention).
+const replayStore = new MapReplayStore();
 const notes = new Map<string, { title: string; body: string }>();
 
 // The service grants note creation, but only for draft titles.
@@ -112,11 +100,23 @@ const server = createServer(async (request, response) => {
       return;
     }
 
-    // Trust only what checkWithRevocations() can prove from the chain.
-    await checkWithRevocations(payloadOf(invocation), delegationStore, revocationStore);
+    // Full authorization: verifyInvocation() authenticates the invocation and
+    // every proof signature, recomputes proof CIDs, requires the executor to be
+    // the audience (`service.did`), runs the time/chain/command/predicate
+    // checks, applies revocations, and claims the CID for replay prevention.
+    // (`check`/`checkWithRevocations` are semantic-only and MUST NOT be used as
+    // the authorization gate — they verify no signatures.)
+    //
+    // IMPORTANT: execute from the RETURNED authenticated snapshot, never the
+    // decoded input, whose fields a hostile store could have mutated mid-verify.
+    const verified = await verifyInvocation(invocation, delegationStore, {
+      executor: service.did,
+      replayStore,
+      revocationStore,
+    });
 
-    const title = String(invocation.arguments.get("title"));
-    const body = String(invocation.arguments.get("body") ?? "");
+    const title = String(verified.arguments.get("title"));
+    const body = String(verified.arguments.get("body") ?? "");
     const id = String(notes.size + 1);
     notes.set(id, { title, body });
 
@@ -124,7 +124,9 @@ const server = createServer(async (request, response) => {
     response.setHeader("content-type", "application/json");
     response.end(JSON.stringify({ id }));
   } catch (error) {
-    if (error instanceof StoredCheckError || error instanceof RevokedError || error instanceof CheckFailed) {
+    // Any authorization failure (bad signature/CID/audience/replay, or a
+    // time/chain/command/predicate/revocation failure) is a 403.
+    if (error instanceof VerifyError || error instanceof StoredCheckError || error instanceof RevokedError) {
       response.statusCode = 403;
       response.end("forbidden");
       return;
@@ -178,6 +180,29 @@ try {
     body: "hello from a browser, queue, or CLI",
   });
   console.log("POST /notes 201 ✓");
+
+  // A forged invocation with a flipped signature byte must be rejected. This is
+  // exactly what a semantic-only check would have accepted, so it proves the
+  // authorization gate authenticates signatures.
+  {
+    const forged = new InvocationBuilder()
+      .issuer(user).audience(service.did).subject(service.did).command(routeCommand)
+      .arguments(new Map([["title", "draft:forged"], ["body", "x"]]))
+      .proofs([delegationCid]).tryBuild();
+    const bytes = forged.encode();
+    bytes[4] ^= 0x01; // flip a byte inside the 64-byte signature
+    const response = await fetch(`${baseUrl}/notes`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${Buffer.from(bytes).toString("base64url")}`,
+        "X-UCAN-Proofs": delegationWire,
+      },
+      body: "",
+    });
+    assert.equal(response.status, 403);
+    assert.equal(notes.size, 1);
+    console.log("POST /notes forged signature => 403 ✓");
+  }
 
   // The same route rejects a title that misses the policy.
   const rejectedByPolicy = await makeRequest("published:not allowed");

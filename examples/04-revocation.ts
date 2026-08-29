@@ -1,10 +1,16 @@
 /**
  * Revocation chain: delegated proofs, encoded revocations, and revocation-aware
- * authorization checks.
+ * semantic checks.
  *
- * Alice delegates to Bob, Bob delegates to Carol, and the checker walks that
- * proof chain end-to-end.
- * Then Bob revokes Carol's proof, and only that revoker should matter.
+ * Alice delegates to Bob, Bob delegates to Carol, and `checkWithRevocations()`
+ * walks that proof chain end-to-end. Then Bob revokes Carol's proof, and only
+ * that revoker should matter.
+ *
+ * WARNING: `checkWithRevocations()` is SEMANTIC-ONLY (chain/predicate/time +
+ * revocation). It does NOT verify envelope signatures, proof CIDs, the executor
+ * audience, or replay, so it MUST NOT gate authorization on untrusted input.
+ * For real authorization, use `verifyInvocation()` with a `revocationStore`
+ * (see examples/05-rest-api.ts).
  *
  * Run:
  *   node examples/04-revocation.ts

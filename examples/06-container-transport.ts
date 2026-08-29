@@ -4,8 +4,13 @@
  * Bundle a delegation and invocation for a byte pipe, then unpack them on the
  * receiving side.
  * This shows both raw-bytes and base64-url container variants.
- * The receiver restores the tokens, checks the chain, and keeps the UCAN
- * authority intact across transport.
+ * The receiver restores the tokens and runs the semantic `check()` on the
+ * decoded chain.
+ *
+ * WARNING: `check()` here is SEMANTIC-ONLY and does NOT authenticate
+ * signatures. Transport does not confer authority; a receiver that must
+ * authorize the invocation MUST call `verifyInvocation()` (see
+ * examples/05-rest-api.ts), not `check()`.
  *
  * Run:
  *   node examples/06-container-transport.ts

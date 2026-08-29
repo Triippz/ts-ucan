@@ -157,18 +157,26 @@ function getCollection(sel: Select<Collection>, data: Ipld): Collection {
 export function glob(input: string, pattern: string): boolean {
   if (pattern.length === 0) return input.length === 0;
 
-  // Parse pattern into fragments separated by '*'
+  // Parse pattern into fragments separated by unescaped '*'. Track whether the
+  // pattern opens/closes with an *unescaped* wildcard, computed from the parse
+  // (not the raw string) so an escaped literal `\*` at either end is anchored,
+  // not treated as a wildcard.
   const patterns: string[] = [];
   let working = "";
   let sawEscape = false;
+  let leadingWildcard = false;
+  let trailingWildcard = false;
 
   for (const c of pattern) {
     if (c === '*') {
       if (sawEscape) {
         working += '*';
+        trailingWildcard = false;
       } else {
+        if (patterns.length === 0 && working.length === 0) leadingWildcard = true;
         patterns.push(working);
         working = "";
+        trailingWildcard = true;
       }
       sawEscape = false;
     } else if (c === '\\') {
@@ -176,12 +184,14 @@ export function glob(input: string, pattern: string): boolean {
         working += '\\';
       }
       sawEscape = true;
+      trailingWildcard = false;
     } else {
       if (sawEscape) {
         working += '\\';
       }
       working += c;
       sawEscape = false;
+      trailingWildcard = false;
     }
   }
 
@@ -190,21 +200,41 @@ export function glob(input: string, pattern: string): boolean {
   }
   patterns.push(working);
 
-  // Test input against the pattern
-  let remaining = input;
-  for (let idx = 0; idx < patterns.length; idx++) {
+  // Test input against the pattern.
+  // No unescaped `*` → the whole pattern is one anchored literal.
+  if (patterns.length === 1) {
+    return input === patterns[0];
+  }
+
+  let start = 0;
+  let end = input.length;
+
+  // Anchor the first fragment to the start unless a leading wildcard precedes it.
+  if (!leadingWildcard) {
+    if (!input.startsWith(patterns[0])) return false;
+    start = patterns[0].length;
+  }
+  // Anchor the last fragment to the END unless a trailing wildcard follows it.
+  // (indexOf would greedily match the first occurrence: glob("aba","*a") must be
+  // true because the leading `*` may consume "ab".)
+  if (!trailingWildcard) {
+    const last = patterns[patterns.length - 1];
+    if (!input.endsWith(last)) return false;
+    end -= last.length;
+  }
+  if (end < start) return false;
+
+  // Greedily place the middle fragments (everything strictly between the
+  // anchored ends) left-to-right in the remaining window. Wildcards separate
+  // them, so leftmost placement is optimal and needs no backtracking.
+  const firstMiddle = leadingWildcard ? 0 : 1;
+  const lastMiddle = trailingWildcard ? patterns.length - 1 : patterns.length - 2;
+  let cursor = start;
+  for (let idx = firstMiddle; idx <= lastMiddle; idx++) {
     const frag = patterns[idx];
-    const pos = remaining.indexOf(frag);
-
-    if (pos === -1) return false;
-
-    const pre = remaining.slice(0, pos);
-    const post = remaining.slice(pos + frag.length);
-
-    if (idx === 0 && !pattern.startsWith('*') && pre.length > 0) return false;
-    if (idx === patterns.length - 1 && !pattern.endsWith('*') && post.length > 0) return false;
-
-    remaining = post;
+    const found = input.indexOf(frag, cursor);
+    if (found === -1 || found + frag.length > end) return false;
+    cursor = found + frag.length;
   }
 
   return true;

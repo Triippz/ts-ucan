@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { Ipld } from "../src/index.js";
-import { Select } from "../src/index.js";
-import { selectIpld } from "../src/delegation/policy/selector/selectable.js";
+import { Select, SelectorError } from "../src";
+import { selectIpld } from "../src/delegation/policy";
 
 /**
  * Property tests from Rust that are not ported:
@@ -151,5 +151,13 @@ describe("Select", () => {
   it("test_try_missing_plus_trailing_is_null", () => {
     const selector = Select.fromString(".foo?.bar.baz?", selectIpld);
     expect(selector.get(new Map([["baz", 42]]))).toBeNull();
+  });
+
+  it("optional_that_HITS_does_not_swallow_a_later_required_miss", () => {
+    // spec :619/:649 — `.account?` present, `.owner` (required) missing MUST
+    // fail the predicate, not resolve to null. An optional only null-swallows
+    // when it itself misses; a hit must not broaden `== null` policies.
+    const selector = Select.fromString(".account?.owner", selectIpld);
+    expect(() => selector.get(new Map([["account", new Map()]]))).toThrow(SelectorError);
   });
 });

@@ -5,10 +5,11 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { DelegationBuilder } from "../src/index.js";
-import { Ed25519Signer, Ed25519Did } from "../src/did.js";
-import { DelegatedSubject } from "../src/delegation/subject.js";
-import { ipldFromDagCbor } from "../src/ipld.js";
+import { DelegationBuilder, Delegation, Nonce } from "../src";
+import { Ed25519Signer, Ed25519Did } from "../src";
+import { DelegatedSubject } from "../src";
+import { ipldFromDagCbor, ipldToDagCbor } from "../src";
+import { DagCborCodec, Varsig, Ed25519 } from "@marktripoli/varsig";
 
 function base64ToBytes(b64: string): Uint8Array {
   const binaryString = atob(b64);
@@ -57,6 +58,33 @@ describe("Delegation", () => {
       expect(envelopePayload.has("ucan/dlg@1.0.0-rc.1")).toBe(true);
       expect(envelopePayload.has("ucan/dlg@1.0.0")).toBe(false);
     }
+  });
+
+  it("decodes_delegation_with_explicit_empty_meta", () => {
+    // spec: delegation `meta` is optional and MAY be an explicit empty map (it
+    // does not require omission, unlike invocation). A signer that includes
+    // `meta: {}` must decode, verify, and round-trip byte-identically.
+    const alice = new Ed25519Signer(new Uint8Array(32).fill(1));
+    const bob = new Ed25519Signer(new Uint8Array(32).fill(2));
+    const header = new Varsig(new Ed25519(), DagCborCodec);
+    const payload = new Map<string, unknown>([
+      ["iss", alice.did.toString()],
+      ["aud", bob.did.toString()],
+      ["sub", alice.did.toString()],
+      ["cmd", "/"],
+      ["pol", []],
+      ["exp", null],
+      ["meta", new Map()],
+      ["nonce", Nonce.generate16().toIpld()],
+    ]);
+    const sigPayload = new Map<string, unknown>([["h", header.encode()], ["ucan/dlg@1.0.0", payload]]);
+    const { signature } = new Ed25519().trySign(DagCborCodec, alice.signer, sigPayload as never);
+    const bytes = ipldToDagCbor([signature, sigPayload] as never);
+
+    const delegation = Delegation.decode(bytes);
+    expect(delegation.meta.size).toBe(0);
+    expect(() => delegation.verifySignature()).not.toThrow();
+    expect(delegation.encode()).toEqual(bytes);
   });
 
   it("delegation_payload_any_subject_serializes_to_null", () => {

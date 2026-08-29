@@ -1,9 +1,14 @@
 /**
- * End-to-end authorization: a valid delegation passes, a policy mismatch
- * fails, and an expired proof fails.
+ * Semantic checks: a valid delegation passes, a policy mismatch fails, and an
+ * expired proof fails.
  *
- * Alice delegates to Bob; Bob invokes on Alice's behalf.
- * The store and checker verify the delegation chain, predicate, and time bounds.
+ * Alice delegates to Bob; Bob invokes on Alice's behalf. `check()` validates
+ * the delegation chain, predicate, and time bounds.
+ *
+ * WARNING: `check()` is SEMANTIC-ONLY. It does NOT verify envelope signatures,
+ * proof CIDs, the executor audience, or replay. It MUST NOT be used as an
+ * authorization gate on untrusted input. For real authorization, use
+ * `verifyInvocation()` (see examples/05-rest-api.ts).
  *
  * Run:
  *   node examples/02-invocation-and-check.ts

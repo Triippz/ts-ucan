@@ -4,16 +4,16 @@
 
 import type { CID } from "multiformats/cid";
 import type { Ipld } from "../ipld.js";
-import { ipldFromDagCbor, ipldToDagCbor } from "../ipld.js";
+import { ipldFromDagCbor, ipldToDagCbor, bytesEqual } from "../ipld.js";
 import type { Did, VarsigConfigOf } from "../did.js";
 import { Ed25519Did } from "../did.js";
 import { Command } from "../command.js";
 import { Nonce } from "../crypto/nonce.js";
 import { Timestamp } from "../time/index.js";
-import type { PayloadTag } from "../envelope/payloadTag.js";
-import { envelopeFromIpld, envelopeToIpld, tagOf, type Envelope } from "../envelope/index.js";
+import type { PayloadTag } from "../envelope/index.js";
+import { envelopeFromIpld, envelopeToIpld, sigPayloadToIpld, tagOf, type Envelope } from "../envelope/index.js";
 import { toDagCborCid } from "../cid.js";
-import { ed25519TryFromTags } from "@marktripoli/varsig";
+import { ed25519TryFromTags, Ed25519, DagCborCodec, DAG_CBOR_CODE } from "@marktripoli/varsig";
 import type { Predicate } from "./policy/index.js";
 import { ipldToPredicate, predicateToIpld } from "./policy/index.js";
 import { ipldToSubject, subjectToIpld, type DelegatedSubject } from "./subject.js";
@@ -32,6 +32,14 @@ export interface DelegationPayload<D extends Did = Did> {
   readonly notBefore: Timestamp | null;
   readonly meta: Map<string, Ipld>;
   readonly nonce: Nonce;
+  /**
+   * Whether `meta` was present on the wire. The delegation spec marks `meta`
+   * optional but (unlike invocation) does not require an empty map to be
+   * omitted, so a signer MAY include `meta: {}`. We preserve that presence so
+   * the re-encoded CID/SigPayload matches the exact bytes that were signed.
+   * Undefined (builder-created) behaves as "omit when empty".
+   */
+  readonly metaPresent?: boolean;
 }
 
 export function delegationPayloadToIpld<D extends Did>(p: DelegationPayload<D>): Ipld {
@@ -44,9 +52,10 @@ export function delegationPayloadToIpld<D extends Did>(p: DelegationPayload<D>):
     ["exp", p.expiration === null ? null : p.expiration.toIpld()],
     ["nonce", p.nonce.toIpld()],
   ];
-  // meta is optional; an empty map is omitted from the wire form
-  // (delegation spec payload table; official 1.0.0 fixture bytes omit it).
-  if (p.meta.size > 0) {
+  // meta is optional. Builder-created payloads omit an empty map (matching the
+  // official 1.0.0 fixture bytes); decoded payloads preserve the presence seen
+  // on the wire so an explicit `meta: {}` re-encodes byte-identically.
+  if (p.metaPresent || p.meta.size > 0) {
     entries.push(["meta", p.meta]);
   }
   if (p.notBefore !== null) {
@@ -185,6 +194,7 @@ export function ipldToDelegationPayload<D extends Did>(i: Ipld): DelegationPaylo
     notBefore,
     meta,
     nonce,
+    metaPresent: metaSeen,
   };
 }
 
@@ -252,6 +262,35 @@ export class Delegation<D extends Did = Did> {
   static decode(bytes: Uint8Array): Delegation<Ed25519Did> {
     const ipld = ipldFromDagCbor(bytes);
     const envelope = envelopeFromIpld(ipld, tagOf(delegationPayloadTag), ipldToDelegationPayload<Ed25519Did>, ed25519TryFromTags);
-    return new Delegation<Ed25519Did>(envelope);
+    const delegation = new Delegation<Ed25519Did>(envelope);
+    // spec §Encoding: signing is over canonical DAG-CBOR. Reject any wire form
+    // that is not the exact canonical encoding so the bytes we verify a
+    // signature over are exactly the bytes that were signed.
+    if (!bytesEqual(delegation.encode(), bytes)) {
+      throw new Error("delegation is not canonically encoded");
+    }
+    if (envelope.payload.header.codec.multicodecCode !== DAG_CBOR_CODE) {
+      throw new Error("delegation varsig header must select DAG-CBOR");
+    }
+    return delegation;
+  }
+
+  /**
+   * Cryptographically verify the envelope signature against the issuer's key.
+   *
+   * Verification does not trust the envelope's header object: it re-derives a
+   * fresh Ed25519/DAG-CBOR verifier and checks the signature against the
+   * issuer's key over the canonical SigPayload. Throws on failure.
+   */
+  verifySignature(): void {
+    const issuer: Did = this.envelope.payload.payload.issuer;
+    if (!(issuer instanceof Ed25519Did)) {
+      throw new Error("signature verification requires an Ed25519 issuer");
+    }
+    if (this.envelope.payload.header.codec.multicodecCode !== DAG_CBOR_CODE) {
+      throw new Error("delegation varsig header must select DAG-CBOR");
+    }
+    const sigPayload = sigPayloadToIpld(this.envelope.payload.header, delegationPayloadTag, this.envelope.payload.payload, delegationPayloadToIpld);
+    new Ed25519().tryVerify(DagCborCodec, issuer.publicKey, this.envelope.signature, sigPayload);
   }
 }

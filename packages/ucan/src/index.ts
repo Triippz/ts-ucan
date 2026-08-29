@@ -125,8 +125,10 @@ export {
 
 // Invocation
 export type { InvocationPayload } from "./invocation/index.js";
-export { Invocation, invocationPayloadTag, invocationPayloadToIpld, ipldToInvocationPayload, invocationPayloadToCid, check, syntaticChecks, CheckFailed, StoredCheckError } from "./invocation/index.js";
+export { Invocation, invocationPayloadTag, invocationPayloadToIpld, ipldToInvocationPayload, invocationPayloadToCid, check, checkResolved, timeBoundChecks, syntaticChecks, CheckFailed, StoredCheckError } from "./invocation/index.js";
 export { InvocationBuilder } from "./invocation/builder.js";
+export { verifyInvocation, VerifyError, MapReplayStore } from "./invocation/verify.js";
+export type { ReplayStore } from "./invocation/verify.js";
 
 // Revocation
 export {
@@ -134,7 +136,10 @@ export {
   revoke,
   MapRevocationStore,
   RevokedError,
+  InvalidRevocationError,
+  assertValidRevocation,
   checkWithRevocations,
+  checkRevocations,
 } from "./revocation/index.js";
 export type { RevocationStore } from "./revocation/index.js";
 

@@ -40,7 +40,13 @@ export class Ed25519Did implements Did<Ed25519> {
     if (publicKey.length !== 32) {
       throw new Error("Ed25519 public key must be 32 bytes");
     }
-    ed25519.Point.fromBytes(publicKey, true);
+    // fromBytes rejects non-canonical / off-curve encodings; isSmallOrder
+    // rejects the small-order points (incl. identity) that allow a universal
+    // forgery accepted by any signature. A legitimate key is large-prime order.
+    const point = ed25519.Point.fromBytes(publicKey, true);
+    if (point.isSmallOrder()) {
+      throw new Error("Ed25519 public key is a small-order point");
+    }
     this.publicKey = publicKey;
     this.varsigConfig = new Ed25519();
   }

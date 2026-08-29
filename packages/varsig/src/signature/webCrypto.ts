@@ -70,7 +70,10 @@ export function webCryptoVerify(
       ecdsaVerify(p521, sha512, msg, sig.signature, verifier.key);
       return;
     case "ed25519":
-      if (!ed25519.verify(sig.signature, msg, verifier.key)) {
+      // zip215:false enforces strict RFC 8032 (rejects non-canonical /
+      // small-order signatures), matching the Ed25519 class and closing the
+      // identity-key universal forgery.
+      if (!ed25519.verify(sig.signature, msg, verifier.key, { zip215: false })) {
         throw new Error("signature verification failed");
       }
       return;

@@ -34,7 +34,9 @@ export class Ed25519 implements Sign<Uint8Array, Uint8Array> {
     payload: Ipld,
   ): void {
     defaultTryVerify(codec, verifier, signature, payload, (vk, msg, sig) => {
-      if (!ed25519.verify(sig, msg, vk as Uint8Array)) {
+      // zip215:false enforces strict RFC 8032: rejects non-canonical encodings
+      // and the small-order/malleable signatures that enable universal forgery.
+      if (!ed25519.verify(sig, msg, vk as Uint8Array, { zip215: false })) {
         throw new VerificationError("verificationError", "signature verification failed");
       }
     });

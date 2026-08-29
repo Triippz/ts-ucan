@@ -174,7 +174,8 @@ export class Timestamp {
   /**
    * Create from wire IPLD integer.
    *
-   * Permissive path used by serde-equivalent decoding.
+   * spec §Time Bounds: timestamps outside -(2^53-1)..2^53-1 MUST be rejected as
+   * invalid, so wire decoding enforces the same bound as the strict path.
    */
   static fromWireIpld(ipld: Ipld): Timestamp {
     if (typeof ipld === "number") {
@@ -186,7 +187,7 @@ export class Timestamp {
     }
 
     try {
-      return Timestamp.postelUnix(ipld as number | bigint);
+      return Timestamp.fromUnix(ipld as number | bigint);
     } catch {
       throw new TimestampFromIpldError("notATimestamp");
     }

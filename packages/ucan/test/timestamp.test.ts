@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { Timestamp, OutOfRangeError, TimestampFromIpldError } from "../src/time/index.js";
+import { Timestamp, OutOfRangeError, TimestampFromIpldError } from "../src";
 
 describe("Timestamp", () => {
   describe("construction", () => {
@@ -70,10 +70,8 @@ describe("Timestamp", () => {
       expect(() => Timestamp.fromIpld(9007199254740992n)).toThrow(TimestampFromIpldError);
     });
 
-    it("wire fromIpld accepts bigint values past 2^53-1", () => {
-      const big = 9007199254740992n;
-      const ts = Timestamp.fromWireIpld(big);
-      expect(ts.toUnix()).toBe(big);
+    it("wire fromIpld rejects bigint values past 2^53-1 (spec §Time Bounds)", () => {
+      expect(() => Timestamp.fromWireIpld(9007199254740992n)).toThrow(TimestampFromIpldError);
     });
   });
 
@@ -87,8 +85,9 @@ describe("Timestamp", () => {
     });
 
     it("compares number and bigint values consistently", () => {
-      const ts1 = Timestamp.fromWireIpld(9007199254740992n);
-      const ts2 = Timestamp.fromWireIpld(9007199254740993n);
+      // postelUnix retains the >2^53 bigint path used for internal comparison.
+      const ts1 = Timestamp.postelUnix(9007199254740992n);
+      const ts2 = Timestamp.postelUnix(9007199254740993n);
       expect(ts1.compare(ts2)).toBe(-1);
       expect(ts2.compare(ts1)).toBe(1);
     });

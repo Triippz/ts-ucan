@@ -25,20 +25,31 @@ export function numberCompare(a: UcanNumber, b: UcanNumber): -1 | 0 | 1 | null {
   }
 
   if (a.kind === "integer" && b.kind === "integer") {
-    if (a.value < b.value) return -1;
-    if (a.value > b.value) return 1;
+    const av = BigInt(a.value);
+    const bv = BigInt(b.value);
+    if (av < bv) return -1;
+    if (av > bv) return 1;
     return 0;
   }
 
-  const floatVal = a.kind === "float" ? a.value : b.value;
-  const intVal = a.kind === "integer" ? a.value : b.value;
+  const floatVal: number = a.kind === "float" ? a.value : (b.value as number);
+  const intVal = BigInt(a.kind === "integer" ? a.value : b.value);
 
   if (Number.isNaN(floatVal)) return null;
+  if (floatVal === Infinity) return a.kind === "float" ? 1 : -1;
+  if (floatVal === -Infinity) return a.kind === "float" ? -1 : 1;
 
-  const intAsFloat = Number(intVal);
-  if (floatVal < intAsFloat) return a.kind === "float" ? -1 : 1;
-  if (floatVal > intAsFloat) return a.kind === "float" ? 1 : -1;
-  return 0;
+  // Compare exactly: converting a large bigint to f64 loses precision, so
+  // 2^53 (float) would wrongly equal 2^53+1 (int). Split the float into its
+  // integer floor and fractional remainder and compare against the bigint.
+  const floor = Math.floor(floatVal);
+  const floorInt = BigInt(floor);
+  let cmp: -1 | 0 | 1;
+  if (floorInt < intVal) cmp = -1;
+  else if (floorInt > intVal) cmp = 1;
+  else cmp = floatVal > floor ? 1 : 0; // equal floor: fractional part breaks the tie
+
+  return a.kind === "float" ? cmp : (-cmp as -1 | 0 | 1);
 }
 
 /**

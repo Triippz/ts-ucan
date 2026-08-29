@@ -91,13 +91,23 @@ export class Select<T> {
       seenOps.push(op);
 
       if (op.kind === "try") {
+        // spec §Validation: selectors resolve left to right. The optional
+        // applies to the current selection, not the root; resolving against
+        // `ctx` here makes `.account.owner?` wrongly return null (broadening
+        // `== null` policies) when `account.owner` is actually present.
+        //
+        // Only enable null-swallowing of *subsequent* segments when this
+        // optional actually MISSES. When it HITS, a later non-optional segment
+        // that cannot resolve MUST still fail the predicate (spec :619/:649) —
+        // otherwise `.account?.owner` on a present account with a missing owner
+        // would wrongly yield null and pass an `== null` policy.
         try {
           const innerSelect = new Select<Ipld>([op.inner], selectIpld);
-          current = innerSelect.get(ctx);
+          current = innerSelect.get(current);
         } catch {
           current = null as unknown as Ipld;
+          isTry = true;
         }
-        isTry = true;
         continue;
       }
 

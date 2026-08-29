@@ -61,9 +61,12 @@ const cases = [
     expected: true,
   },
   // Optional chaining keeps a missing nested field from blowing up the lookup.
+  // The `?` must sit on the segment that may be absent (`.missing?`): the
+  // optional only null-swallows when it itself misses, so a hit on `[-1]`
+  // followed by a required `.missing` would (correctly) fail the predicate.
   {
     name: "negative index + ?",
-    predicate: ipldToPredicate(["==", ".steps[-1]?.missing", null]),
+    predicate: ipldToPredicate(["==", ".steps[-1].missing?", null]),
     data: new Map([["steps", ["plan", "build", "ship"]]]),
     expected: true,
   },

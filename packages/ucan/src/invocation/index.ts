@@ -4,16 +4,16 @@
 
 import { CID } from "multiformats/cid";
 import type { Ipld } from "../ipld.js";
-import { ipldFromDagCbor, ipldToDagCbor } from "../ipld.js";
+import { ipldFromDagCbor, ipldToDagCbor, bytesEqual } from "../ipld.js";
 import type { Did, VarsigConfigOf } from "../did.js";
 import { Ed25519Did } from "../did.js";
 import { Command } from "../command.js";
 import { Nonce } from "../crypto/nonce.js";
 import { Timestamp } from "../time/index.js";
 import type { PayloadTag } from "../envelope/index.js";
-import { envelopeFromIpld, envelopeToIpld, tagOf, type Envelope } from "../envelope/index.js";
+import { envelopeFromIpld, envelopeToIpld, sigPayloadToIpld, tagOf, type Envelope } from "../envelope/index.js";
 import { toDagCborCid } from "../cid.js";
-import { ed25519TryFromTags } from "@marktripoli/varsig";
+import { ed25519TryFromTags, Ed25519, DagCborCodec, DAG_CBOR_CODE } from "@marktripoli/varsig";
 import type { Delegation } from "../delegation/index.js";
 import type { DelegationStore } from "../delegation/store.js";
 import { subjectAllows } from "../delegation/subject.js";
@@ -180,6 +180,12 @@ export function invocationPayloadToCid<D extends Did>(p: InvocationPayload<D>): 
   return toDagCborCid(invocationPayloadToIpld(p));
 }
 
+/**
+ * SEMANTIC-ONLY chain/predicate/time validation. This does NOT verify envelope
+ * signatures, proof CIDs, the executor audience, or replay, and MUST NOT be used
+ * as an authorization gate on untrusted input. Use `verifyInvocation` for
+ * authorization.
+ */
 export async function check<D extends Did>(payload: InvocationPayload<D>, store: DelegationStore<D>, now: Timestamp = Timestamp.now()): Promise<void> {
   let realizedProofs: Delegation<D>[];
   try {
@@ -188,9 +194,21 @@ export async function check<D extends Did>(payload: InvocationPayload<D>, store:
     throw new StoredCheckError("getError", error);
   }
 
+  checkResolved(payload, realizedProofs, now);
+}
+
+/**
+ * Run the time and semantic checks against an already-resolved proof array,
+ * wrapping CheckFailed as StoredCheckError to match `check`'s contract.
+ *
+ * Callers that authenticate proofs themselves (e.g. verifyInvocation) pass the
+ * exact verified array here so the checks never route back through a store whose
+ * responses could differ from the ones whose CIDs/signatures were verified.
+ */
+export function checkResolved<D extends Did>(payload: InvocationPayload<D>, proofs: Delegation<D>[], now: Timestamp = Timestamp.now(), leewaySeconds = 0): void {
   try {
-    timeBoundChecks(payload, realizedProofs, now);
-    syntaticChecks(payload, realizedProofs);
+    timeBoundChecks(payload, proofs, now, leewaySeconds);
+    syntaticChecks(payload, proofs);
   } catch (error) {
     if (error instanceof CheckFailed) {
       throw new StoredCheckError("checkFailed", error);
@@ -199,20 +217,32 @@ export async function check<D extends Did>(payload: InvocationPayload<D>, store:
   }
 }
 
+function shiftSeconds(t: Timestamp, deltaSeconds: number): Timestamp {
+  const raw = t.toUnix();
+  const cur = typeof raw === "bigint" ? raw : BigInt(raw);
+  const shifted = cur + BigInt(deltaSeconds);
+  return Timestamp.fromUnix(shifted < 0n ? 0n : shifted);
+}
+
 /**
  * Time-bounds validation per the delegation spec's Token Validation section:
  * a proof is invalid before its `nbf` or after its `exp`; the invocation's own
  * `exp` must also not have passed. All proofs must be valid at execution time.
+ *
+ * `leewaySeconds` widens both bounds symmetrically to tolerate clock drift
+ * (spec §Time Bounds RECOMMENDS a ±60s buffer). Default 0 preserves exact bounds.
  */
-export function timeBoundChecks<D extends Did>(payload: InvocationPayload<D>, proofs: Iterable<Delegation<D>>, now: Timestamp = Timestamp.now()): void {
-  if (payload.expiration !== null && payload.expiration.compare(now) < 0) {
+export function timeBoundChecks<D extends Did>(payload: InvocationPayload<D>, proofs: Iterable<Delegation<D>>, now: Timestamp = Timestamp.now(), leewaySeconds = 0): void {
+  const earliest = leewaySeconds > 0 ? shiftSeconds(now, -leewaySeconds) : now;
+  const latest = leewaySeconds > 0 ? shiftSeconds(now, leewaySeconds) : now;
+  if (payload.expiration !== null && payload.expiration.compare(earliest) < 0) {
     throw new CheckFailed("invocationExpired", payload.expiration);
   }
   for (const proof of proofs) {
-    if (proof.notBefore !== null && proof.notBefore.compare(now) > 0) {
+    if (proof.notBefore !== null && proof.notBefore.compare(latest) > 0) {
       throw new CheckFailed("proofNotYetValid", proof);
     }
-    if (proof.expiration !== null && proof.expiration.compare(now) < 0) {
+    if (proof.expiration !== null && proof.expiration.compare(earliest) < 0) {
       throw new CheckFailed("proofExpired", proof);
     }
   }
@@ -222,14 +252,26 @@ export function syntaticChecks<D extends Did>(payload: InvocationPayload<D>, pro
   const args = payload.arguments;
 
   let expectedIssuer = payload.subject;
+  let previous: Delegation<D> | null = null;
 
   for (const proof of proofs) {
+    // delegation spec §Powerline: `sub: null` MUST NOT be the root delegation.
+    if (previous === null && proof.subject.kind === "any") {
+      throw new CheckFailed("rootProofIssuerIsNotSubject", proof);
+    }
+
     if (!subjectAllows(proof.subject, payload.subject)) {
       throw new CheckFailed("subjectNotAllowedByProof", proof);
     }
 
     if (!proof.issuer.equals(expectedIssuer)) {
       throw new CheckFailed("invalidProofIssuerChain", { expectedIssuer, found: proof.issuer });
+    }
+
+    // spec §Attenuation: each direct delegation MUST restate or attenuate the
+    // parent command; a child may only equal or extend its parent's path.
+    if (previous !== null && !proof.command.startsWith(previous.command)) {
+      throw new CheckFailed("commandMismatch", { expected: previous.command, found: proof.command });
     }
 
     if (!payload.command.startsWith(proof.command)) {
@@ -252,6 +294,7 @@ export function syntaticChecks<D extends Did>(payload: InvocationPayload<D>, pro
     }
 
     expectedIssuer = proof.audience;
+    previous = proof;
   }
 
   if (!expectedIssuer.equals(payload.issuer)) {
@@ -301,6 +344,10 @@ export class Invocation<D extends Did = Did> {
 
   static builder<DSigner extends import("../did.js").DidSigner = import("../did.js").DidSigner>() {
     return new InvocationBuilder<DSigner>();
+  }
+
+  get payload(): InvocationPayload<D> {
+    return this.envelope.payload.payload;
   }
 
   get issuer(): D {
@@ -358,7 +405,37 @@ export class Invocation<D extends Did = Did> {
   static decode(bytes: Uint8Array): Invocation<Ed25519Did> {
     const ipld = ipldFromDagCbor(bytes);
     const envelope = envelopeFromIpld(ipld, tagOf(invocationPayloadTag), ipldToInvocationPayload<Ed25519Did>, ed25519TryFromTags);
-    return new Invocation<Ed25519Did>(envelope);
+    const invocation = new Invocation<Ed25519Did>(envelope);
+    // spec §Encoding: signing is over canonical DAG-CBOR. Reject any wire form
+    // that is not the exact canonical encoding (unknown fields, empty `meta`,
+    // non-canonical varsig LEB128, etc.), so the bytes we verify a signature
+    // over are exactly the bytes that were signed.
+    if (!bytesEqual(invocation.encode(), bytes)) {
+      throw new Error("invocation is not canonically encoded");
+    }
+    if (envelope.payload.header.codec.multicodecCode !== DAG_CBOR_CODE) {
+      throw new Error("invocation varsig header must select DAG-CBOR");
+    }
+    return invocation;
+  }
+
+  /**
+   * Cryptographically verify the envelope signature against the issuer's key.
+   *
+   * Verification does not trust the envelope's header object: it re-derives a
+   * fresh Ed25519/DAG-CBOR verifier and checks the signature against the
+   * issuer's key over the canonical SigPayload. Throws on failure.
+   */
+  verifySignature(): void {
+    const issuer: Did = this.envelope.payload.payload.issuer;
+    if (!(issuer instanceof Ed25519Did)) {
+      throw new Error("signature verification requires an Ed25519 issuer");
+    }
+    if (this.envelope.payload.header.codec.multicodecCode !== DAG_CBOR_CODE) {
+      throw new Error("invocation varsig header must select DAG-CBOR");
+    }
+    const sigPayload = sigPayloadToIpld(this.envelope.payload.header, invocationPayloadTag, this.envelope.payload.payload, invocationPayloadToIpld);
+    new Ed25519().tryVerify(DagCborCodec, issuer.publicKey, this.envelope.signature, sigPayload);
   }
 }
 

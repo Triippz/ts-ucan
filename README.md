@@ -51,6 +51,21 @@ const invocation = new InvocationBuilder()
   .proofs([delegationCid])
   .issueNow()
   .tryBuild();
+
+// Authorize an invocation from untrusted input. verifyInvocation authenticates
+// the invocation + every proof signature, recomputes proof CIDs, enforces the
+// executor audience, runs the chain/predicate/time checks, applies revocations,
+// and claims the CID for replay prevention. It returns the authenticated
+// snapshot — act on the RETURNED value, not the decoded input.
+const verified = await verifyInvocation(Invocation.decode(bytes), delegationStore, {
+  executor: serviceDid,       // the invocation's `aud` must equal this
+  replayStore,                // rejects a repeated invocation CID
+  revocationStore,            // optional
+});
+
+// `check` / `checkWithRevocations` are SEMANTIC-ONLY (chain/predicate/time,
+// plus revocation). They verify NO signatures and MUST NOT gate authorization
+// on untrusted input — use verifyInvocation for that.
 ```
 
 ## Build
