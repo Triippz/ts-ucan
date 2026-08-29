@@ -1,0 +1,29 @@
+{
+  "name": "@ucans/varsig",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@ipld/dag-cbor": "^9",
+    "@ipld/dag-json": "^10",
+    "@noble/curves": "^1",
+    "@noble/hashes": "^1",
+    "multiformats": "^13"
+  },
+  "devDependencies": {
+    "typescript": "^5",
+    "vitest": "^3"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  }
+}
