@@ -3,5 +3,5 @@ dist/
 .reference/
 *.tsbuildinfo
 .idea/
-.vs_code/
-.pi.pi/
+.vscode/
+.pi/
