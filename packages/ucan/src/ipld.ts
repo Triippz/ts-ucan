@@ -8,6 +8,7 @@ export type { Ipld } from "@ucans/varsig";
 
 import { CID } from "multiformats/cid";
 import * as dagCbor from "@ipld/dag-cbor";
+import * as dagJson from "@ipld/dag-json";
 import type { Ipld } from "@ucans/varsig";
 
 /**
@@ -27,6 +28,22 @@ export function ipldFromDagCbor(bytes: Uint8Array): Ipld {
 export function ipldToDagCbor(value: Ipld): Uint8Array {
   const prepared = mapsToObjects(value);
   return dagCbor.encode(prepared);
+}
+
+/**
+ * Decode DAG-JSON bytes into Ipld, converting objects to Map.
+ */
+export function ipldFromDagJson(bytes: Uint8Array): Ipld {
+  const decoded = dagJson.decode(bytes);
+  return objectsToMaps(decoded);
+}
+
+/**
+ * Encode Ipld to DAG-JSON bytes, converting Map to objects.
+ */
+export function ipldToDagJson(value: Ipld): Uint8Array {
+  const prepared = mapsToObjects(value);
+  return dagJson.encode(prepared);
 }
 
 /**
