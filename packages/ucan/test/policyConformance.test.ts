@@ -344,6 +344,12 @@ describe("Policy Conformance - Invalid Scenarios", () => {
       const policySet = fixture.policies[0];
       expect(policySet).toBeDefined();
       const predicate = ipldToPredicate(policySet[0]);
+      // Rust parity note: Predicate::All propagates inner selector errors via
+      // try_fold + `?` (predicate.rs:390-394), so rs-ucan's run() returns
+      // Err(SelectorError::keyNotFound) for this fixture ({z:...} lacks .b).
+      // The upstream Rust harness never executes this data due to its setup(0)
+      // typo (policy_conformance.rs:438-446); its fixture and code disagree.
+      // toThrow asserts the exact Rust propagation behavior deterministically.
       expect(() => runPredicate(predicate, fixture.args)).toThrow(/keyNotFound/);
     });
   });

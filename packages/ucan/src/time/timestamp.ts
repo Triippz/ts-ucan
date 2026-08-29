@@ -153,9 +153,30 @@ export class Timestamp {
   /**
    * Create from IPLD integer.
    *
-   * Uses postelUnix path (no 2^53 bound).
+   * Strict path: enforces the 2^53-1 bound.
    */
   static fromIpld(ipld: Ipld): Timestamp {
+    if (typeof ipld === "number") {
+      if (!Number.isInteger(ipld)) {
+        throw new TimestampFromIpldError("notAnInteger");
+      }
+    } else if (typeof ipld !== "bigint") {
+      throw new TimestampFromIpldError("notAnInteger");
+    }
+
+    try {
+      return Timestamp.fromUnix(ipld as number | bigint);
+    } catch {
+      throw new TimestampFromIpldError("notATimestamp");
+    }
+  }
+
+  /**
+   * Create from wire IPLD integer.
+   *
+   * Permissive path used by serde-equivalent decoding.
+   */
+  static fromWireIpld(ipld: Ipld): Timestamp {
     if (typeof ipld === "number") {
       if (!Number.isInteger(ipld)) {
         throw new TimestampFromIpldError("notAnInteger");

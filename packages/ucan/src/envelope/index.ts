@@ -3,7 +3,7 @@
  */
 
 import type { Ipld } from "../ipld.js";
-import { Varsig, Ed25519, Es256, Es384, Es512, Es256k, type TryFromTags, type Verify } from "@ucans/varsig";
+import { Varsig, type TryFromTags, type Verify } from "@ucans/varsig";
 import { tagOf } from "./payloadTag.js";
 
 export { tagOf } from "./payloadTag.js";
@@ -81,7 +81,7 @@ export function envelopeFromIpld<V extends Verify<any>, T>(
   }
 
   const header = Varsig.decode(headerBytes, tryFromTags);
-  validateSignatureBytes(header.verifierCfg, signatureIpld);
+  header.verifierCfg.tryDecodeSignature(signatureIpld);
   return {
     signature: signatureIpld,
     payload: {
@@ -89,33 +89,4 @@ export function envelopeFromIpld<V extends Verify<any>, T>(
       payload: ipldToPayload(payloadValue!),
     },
   };
-}
-
-function validateSignatureBytes(verifierCfg: Verify<any>, signature: Uint8Array): void {
-  if (verifierCfg instanceof Ed25519) {
-    if (signature.length !== 64) {
-      throw new Error("invalid signature bytes");
-    }
-    return;
-  }
-
-  if (verifierCfg instanceof Es256 || verifierCfg instanceof Es256k) {
-    if (signature.length !== 64) {
-      throw new Error("invalid signature bytes");
-    }
-    return;
-  }
-
-  if (verifierCfg instanceof Es384) {
-    if (signature.length !== 96) {
-      throw new Error("invalid signature bytes");
-    }
-    return;
-  }
-
-  if (verifierCfg instanceof Es512) {
-    if (signature.length !== 132) {
-      throw new Error("invalid signature bytes");
-    }
-  }
 }

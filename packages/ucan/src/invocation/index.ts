@@ -116,11 +116,11 @@ export function ipldToInvocationPayload<D extends Did>(i: Ipld): InvocationPaylo
         break;
       case "iat":
         if (issuedAt !== undefined) throw new Error("duplicate field iat");
-        issuedAt = value === null ? null : Timestamp.fromIpld(value);
+        issuedAt = value === null ? null : Timestamp.fromWireIpld(value);
         break;
       case "exp":
         if (expiration !== undefined) throw new Error("duplicate field exp");
-        expiration = value === null ? null : Timestamp.fromIpld(value);
+        expiration = value === null ? null : Timestamp.fromWireIpld(value);
         break;
       case "meta":
         if (meta !== undefined) throw new Error("duplicate field meta");

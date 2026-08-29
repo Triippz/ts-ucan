@@ -48,6 +48,10 @@ export class Es256 implements Verify<Uint8Array> {
     return [0x1201, 0x15];
   }
 
+  tryDecodeSignature(signature: Uint8Array): void {
+    p256.Signature.fromBytes(signature, "compact");
+  }
+
   tryVerify(
     codec: Codec,
     verifier: Uint8Array,
@@ -86,6 +90,10 @@ export class Es384 implements Verify<Uint8Array> {
 
   configTags(): [0x1202, 0x20] {
     return [0x1202, 0x20];
+  }
+
+  tryDecodeSignature(signature: Uint8Array): void {
+    p384.Signature.fromBytes(signature, "compact");
   }
 
   tryVerify(
@@ -128,6 +136,10 @@ export class Es512 implements Verify<Uint8Array> {
     return [0x1202, 0x13];
   }
 
+  tryDecodeSignature(signature: Uint8Array): void {
+    p521.Signature.fromBytes(signature, "compact");
+  }
+
   tryVerify(
     codec: Codec,
     verifier: Uint8Array,
@@ -166,6 +178,10 @@ export class Es256k implements Verify<Uint8Array> {
 
   configTags(): [0xe7, 0x12] {
     return [0xe7, 0x12];
+  }
+
+  tryDecodeSignature(signature: Uint8Array): void {
+    secp256k1.Signature.fromBytes(signature, "compact");
   }
 
   tryVerify(

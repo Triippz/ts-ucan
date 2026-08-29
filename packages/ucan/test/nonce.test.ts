@@ -20,6 +20,7 @@ describe("Nonce", () => {
   });
 
   it("proptest_roundtrip_serde", () => {
+    // n/a: deterministic length samples stand in for the Rust proptest here.
     const testLengths = [0, 1, 15, 16, 17, 32];
 
     for (const len of testLengths) {

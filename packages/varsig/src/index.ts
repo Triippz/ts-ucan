@@ -45,8 +45,8 @@ export { Es512, es512TryFromTags } from "./signature/ecdsa.js";
 export { Es256k, es256kTryFromTags } from "./signature/ecdsa.js";
 
 // Signature — WebCrypto
-export type { WebCrypto, WebCryptoVerifier } from "./signature/webCrypto.js";
-export { webCryptoTryFromTags } from "./signature/webCrypto.js";
+export type { WebCrypto, WebCryptoVerifier, WebCryptoSignature } from "./signature/webCrypto.js";
+export { webCryptoTryFromTags, webCryptoVerify } from "./signature/webCrypto.js";
 
 // Signature — Common
 export type { Common } from "./signature/index.js";

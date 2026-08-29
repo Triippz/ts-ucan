@@ -22,6 +22,12 @@ export class Ed25519 implements Sign<Uint8Array, Uint8Array> {
     return [0xed, 0x13];
   }
 
+  tryDecodeSignature(signature: Uint8Array): void {
+    if (signature.length !== 64) {
+      throw new Error("invalid signature bytes");
+    }
+  }
+
   tryVerify(
     codec: Codec,
     verifier: Uint8Array,

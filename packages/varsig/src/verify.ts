@@ -16,6 +16,14 @@ export interface Verify<Verifier = unknown> {
   configTags(): number[];
 
   /**
+   * Validate the raw signature byte representation for this algorithm.
+   *
+   * This mirrors Rust's `Signature::try_from` path and runs before payload
+   * verification.
+   */
+  tryDecodeSignature(signature: Uint8Array): void;
+
+  /**
    * Verify a signature for a payload.
    *
    * Encodes the payload with the given codec, then verifies the signature

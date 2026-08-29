@@ -5,6 +5,7 @@
  */
 
 import { describe, it, expect } from "vitest";
+import { encode as dagCborEncode, decode as dagCborDecode } from "@ipld/dag-cbor";
 import { Command, CommandParseError } from "../src/command.js";
 
 describe("Command", () => {
@@ -135,18 +136,20 @@ describe("Command", () => {
 
   // Roundtrip tests
   describe("roundtrips", () => {
-    it("test_cbor_roundtrip", async () => {
+    it("test_cbor_roundtrip", () => {
       const cmd = Command.parse("/store/put");
-      const ipld = cmd.toIpld();
-      const cmd2 = Command.fromIpld(ipld);
-      expect(cmd.equals(cmd2)).toBe(true);
+      const cbor = dagCborEncode(cmd.toIpld());
+      const cmd2 = Command.fromIpld(dagCborDecode(cbor));
+      const cbor2 = dagCborEncode(cmd2.toIpld());
+      expect(cbor2).toEqual(cbor);
     });
 
-    it("test_cbor_roundtrip_root", async () => {
+    it("test_cbor_roundtrip_root", () => {
       const cmd = Command.parse("/");
-      const ipld = cmd.toIpld();
-      const cmd2 = Command.fromIpld(ipld);
-      expect(cmd.equals(cmd2)).toBe(true);
+      const cbor = dagCborEncode(cmd.toIpld());
+      const cmd2 = Command.fromIpld(dagCborDecode(cbor));
+      const cbor2 = dagCborEncode(cmd2.toIpld());
+      expect(cbor2).toEqual(cbor);
     });
   });
 

@@ -65,6 +65,16 @@ describe("Timestamp", () => {
       const ts2 = Timestamp.fromIpld(ipld);
       expect(ts.equals(ts2)).toBe(true);
     });
+
+    it("strict fromIpld rejects values past 2^53-1", () => {
+      expect(() => Timestamp.fromIpld(9007199254740992n)).toThrow(TimestampFromIpldError);
+    });
+
+    it("wire fromIpld accepts bigint values past 2^53-1", () => {
+      const big = 9007199254740992n;
+      const ts = Timestamp.fromWireIpld(big);
+      expect(ts.toUnix()).toBe(big);
+    });
   });
 
   describe("comparison", () => {
@@ -77,8 +87,8 @@ describe("Timestamp", () => {
     });
 
     it("compares number and bigint values consistently", () => {
-      const ts1 = Timestamp.fromIpld(9007199254740992n);
-      const ts2 = Timestamp.fromIpld(9007199254740993n);
+      const ts1 = Timestamp.fromWireIpld(9007199254740992n);
+      const ts2 = Timestamp.fromWireIpld(9007199254740993n);
       expect(ts1.compare(ts2)).toBe(-1);
       expect(ts2.compare(ts1)).toBe(1);
     });
@@ -134,12 +144,6 @@ describe("Timestamp", () => {
     it("accepts integer IPLD", () => {
       const ts = Timestamp.fromIpld(1000);
       expect(ts.toUnix()).toBe(1000);
-    });
-
-    it("accepts bigint IPLD through postel path", () => {
-      const big = 9007199254740992n; // 2^53
-      const ts = Timestamp.fromIpld(big);
-      expect(ts.toUnix()).toBe(big);
     });
   });
 });

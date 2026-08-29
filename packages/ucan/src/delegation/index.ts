@@ -113,14 +113,14 @@ export function ipldToDelegationPayload<D extends Did>(i: Ipld): DelegationPaylo
         if (expiration !== undefined) {
           throw new Error("duplicate field exp");
         }
-        expiration = value === null ? null : Timestamp.fromIpld(value);
+        expiration = value === null ? null : Timestamp.fromWireIpld(value);
         break;
       case "nbf":
         if (notBeforeSeen) {
           throw new Error("duplicate field nbf");
         }
         notBeforeSeen = true;
-        notBefore = value === null ? null : Timestamp.fromIpld(value);
+        notBefore = value === null ? null : Timestamp.fromWireIpld(value);
         break;
       case "meta":
         if (metaSeen) {
