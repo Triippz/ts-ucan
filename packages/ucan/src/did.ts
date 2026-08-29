@@ -85,11 +85,21 @@ export class Ed25519Did implements Did<Ed25519> {
       throw new Ed25519DidFromStrError("invalidBase58");
     }
 
-    if (decoded.length !== 34 || decoded[0] !== 0xed || decoded[1] !== 0x01) {
+    if (decoded.length !== 34) {
+      throw new Ed25519DidFromStrError("invalidKey");
+    }
+
+    if (decoded[0] !== 0xed || decoded[1] !== 0x01) {
       throw new Ed25519DidFromStrError("invalidKey");
     }
 
     const publicKey = decoded.slice(2, 34);
+    try {
+      ed25519.Point.fromBytes(publicKey, true);
+    } catch {
+      throw new Ed25519DidFromStrError("invalidKey");
+    }
+
     return new Ed25519Did(publicKey);
   }
 
