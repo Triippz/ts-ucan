@@ -1,5 +1,5 @@
 {
-  "name": "@ucans/varsig",
+  "name": "@marktripoli/varsig",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -35,5 +35,18 @@
   "homepage": "https://github.com/MarkTripoli/ts-ucan",
   "bugs": {
     "url": "https://github.com/MarkTripoli/ts-ucan/issues"
-  }
+  },
+  "description": "Varsig (variable signature) headers and codecs for UCAN 1.0",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "varsig",
+    "signatures",
+    "multiformats",
+    "dag-cbor"
+  ]
 }

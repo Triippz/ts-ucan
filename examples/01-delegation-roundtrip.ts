@@ -12,7 +12,7 @@ import {
   Delegation,
   Ed25519Signer,
   ipldToPredicate,
-} from "@ucans/ucan";
+} from "@marktripoli/ucan";
 
 function newSigner(): Ed25519Signer {
   const secret = new Uint8Array(32);

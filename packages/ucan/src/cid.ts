@@ -4,7 +4,7 @@
 
 import { CID } from "multiformats/cid";
 import { sha256 } from "multiformats/hashes/sha2";
-import type { Ipld } from "@ucans/varsig";
+import type { Ipld } from "@marktripoli/varsig";
 import { ipldToDagCbor } from "./ipld.js";
 
 /**

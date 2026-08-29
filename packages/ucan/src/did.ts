@@ -4,8 +4,8 @@
 
 import { ed25519 } from "@noble/curves/ed25519";
 import { base58btc } from "multiformats/bases/base58";
-import type { Sign } from "@ucans/varsig";
-import { Ed25519 } from "@ucans/varsig";
+import type { Sign } from "@marktripoli/varsig";
+import { Ed25519 } from "@marktripoli/varsig";
 import type { Ipld } from "./ipld.js";
 
 /**

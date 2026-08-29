@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import policyFixture from "./fixtures/policy.json" assert { type: "json" };
 import { runPredicate, ipldToPredicate } from "../src/delegation/policy/predicate.js";
-import type { Ipld } from "@ucans/varsig";
+import type { Ipld } from "@marktripoli/varsig";
 import { ipldFromDagJson } from "../src/ipld.js";
 
 async function loadFixture(

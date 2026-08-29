@@ -13,7 +13,7 @@ import { Timestamp } from "../time/index.js";
 import type { PayloadTag } from "../envelope/payloadTag.js";
 import { envelopeFromIpld, envelopeToIpld, type Envelope } from "../envelope/index.js";
 import { toDagCborCid } from "../cid.js";
-import { ed25519TryFromTags } from "@ucans/varsig";
+import { ed25519TryFromTags } from "@marktripoli/varsig";
 import type { Predicate } from "./policy/index.js";
 import { ipldToPredicate, predicateToIpld } from "./policy/index.js";
 import { ipldToSubject, subjectToIpld, type DelegatedSubject } from "./subject.js";

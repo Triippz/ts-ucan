@@ -2,7 +2,7 @@
  * Delegation builder.
  */
 
-import { DagCborCodec, Varsig } from "@ucans/varsig";
+import { DagCborCodec, Varsig } from "@marktripoli/varsig";
 import type { Did, DidSigner } from "../did.js";
 import { Command } from "../command.js";
 import { Nonce } from "../crypto/nonce.js";

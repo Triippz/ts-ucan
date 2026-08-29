@@ -19,8 +19,8 @@ This library implements the UCAN 1.0 family of specifications:
 
 | Package | Contents |
 |---|---|
-| `@ucans/varsig` | Varsig headers, payload codecs (DAG-CBOR, DAG-JSON), EdDSA sign/verify, ECDSA verify (P-256/P-384/P-521/secp256k1), WebCrypto integration |
-| `@ucans/ucan` | Delegation and invocation tokens with builders, the policy language (predicates + selectors), envelopes, `did:key` principals, timestamps, nonces, proof-chain checking |
+| `@marktripoli/varsig` | Varsig headers, payload codecs (DAG-CBOR, DAG-JSON), EdDSA sign/verify, ECDSA verify (P-256/P-384/P-521/secp256k1), WebCrypto integration |
+| `@marktripoli/ucan` | Delegation and invocation tokens with builders, the policy language (predicates + selectors), envelopes, `did:key` principals, timestamps, nonces, proof-chain checking |
 
 ## Wire format
 
@@ -29,7 +29,7 @@ Tokens are DAG-CBOR envelopes: a varsig header describing the signature scheme p
 ## Usage
 
 ```ts
-import { DelegationBuilder, InvocationBuilder } from "@ucans/ucan";
+import { DelegationBuilder, InvocationBuilder } from "@marktripoli/ucan";
 
 // Delegate a capability
 const delegation = new DelegationBuilder()

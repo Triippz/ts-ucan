@@ -1,5 +1,5 @@
 {
-  "name": "@ucans/ucan",
+  "name": "@marktripoli/ucan",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@ipld/dag-cbor": "^9",
-    "@ucans/varsig": "file:../varsig",
+    "@marktripoli/varsig": "^0.1.0",
     "multiformats": "^13"
   },
   "devDependencies": {
@@ -34,5 +34,19 @@
   "homepage": "https://github.com/MarkTripoli/ts-ucan",
   "bugs": {
     "url": "https://github.com/MarkTripoli/ts-ucan/issues"
-  }
+  },
+  "description": "TypeScript implementation of UCAN 1.0: delegation, invocation, policy, revocation",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "ucan",
+    "auth",
+    "capabilities",
+    "dag-cbor",
+    "did"
+  ]
 }

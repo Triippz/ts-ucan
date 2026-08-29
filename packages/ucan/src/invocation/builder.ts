@@ -3,7 +3,7 @@
  */
 
 import type { CID } from "multiformats/cid";
-import { DagCborCodec, Varsig } from "@ucans/varsig";
+import { DagCborCodec, Varsig } from "@marktripoli/varsig";
 import type { DidSigner } from "../did.js";
 import { Command } from "../command.js";
 import { Nonce } from "../crypto/nonce.js";

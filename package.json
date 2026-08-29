@@ -1,5 +1,5 @@
 {
-  "name": "ucans",
+  "name": "ts-ucan",
   "description": "TypeScript implementation of UCANs",
   "author": "Mark Tripoli",
   "repository": {
@@ -13,7 +13,7 @@
   },
   "scripts": {
     "build": "tsc -p packages/varsig && tsc -p packages/ucan",
-    "test": "npm --workspace=@ucans/varsig test && npm --workspace=@ucans/ucan test",
+    "test": "npm --workspace=@marktripoli/varsig test && npm --workspace=@marktripoli/ucan test",
     "prepare": "git config core.hooksPath .githooks",
     "lint": "eslint ."
   },

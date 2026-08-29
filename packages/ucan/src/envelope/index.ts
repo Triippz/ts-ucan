@@ -3,7 +3,7 @@
  */
 
 import type { Ipld } from "../ipld.js";
-import { Varsig, type TryFromTags, type Verify } from "@ucans/varsig";
+import { Varsig, type TryFromTags, type Verify } from "@marktripoli/varsig";
 import { tagOf } from "./payloadTag.js";
 
 export { tagOf } from "./payloadTag.js";

@@ -1,15 +1,15 @@
 /**
  * IPLD helpers and utilities.
  *
- * Re-exports the Ipld type from @ucans/varsig (the seam file per §5.1).
+ * Re-exports the Ipld type from @marktripoli/varsig (the seam file per §5.1).
  */
 
-export type { Ipld } from "@ucans/varsig";
+export type { Ipld } from "@marktripoli/varsig";
 
 import { CID } from "multiformats/cid";
 import * as dagCbor from "@ipld/dag-cbor";
 import * as dagJson from "@ipld/dag-json";
-import type { Ipld } from "@ucans/varsig";
+import type { Ipld } from "@marktripoli/varsig";
 
 /**
  * Decode DAG-CBOR bytes into Ipld, converting objects to Map.
