@@ -178,9 +178,12 @@ export function ipldToDelegationPayload<D extends Did>(i: Ipld): DelegationPaylo
   };
 }
 
+/**
+ * Spec §Type Tag: "The UCAN envelope tag for UCAN Delegation MUST be set to ucan/dlg@1.0.0"
+ */
 export const delegationPayloadTag: PayloadTag = {
   specId: "dlg",
-  version: "1.0.0-rc.1",
+  version: "1.0.0",
 };
 
 export class Delegation<D extends Did = Did> {

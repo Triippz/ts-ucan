@@ -12,6 +12,8 @@ export type { PayloadTag } from "./payloadTag.js";
 export interface EnvelopePayload<V extends Verify<any>, T> {
   readonly header: Varsig<V>;
   readonly payload: T;
+  /** The wire tag key from decode (e.g. "ucan/dlg@1.0.0-rc.1"), preserved for exact roundtrip.  */
+  readonly tag?: string;
 }
 
 export interface Envelope<V extends Verify<any>, T> {
@@ -24,11 +26,13 @@ export function envelopeToIpld<V extends Verify<any>, T>(
   tag: import("./payloadTag.js").PayloadTag,
   payloadToIpld: (t: T) => Ipld,
 ): Ipld {
+  // Use stored tag from decode for exact roundtrip, otherwise compute from PayloadTag
+  const tagString = e.payload.tag ?? tagOf(tag);
   return [
     e.signature,
     new Map<string, Ipld>([
       ["h", e.payload.header.encode()],
-      [tagOf(tag), payloadToIpld(e.payload.payload)],
+      [tagString, payloadToIpld(e.payload.payload)],
     ]),
   ];
 }
@@ -53,6 +57,8 @@ export function envelopeFromIpld<V extends Verify<any>, T>(
   let headerBytes: Uint8Array | undefined;
   let payloadValue: Ipld | undefined;
   let sawPayload = false;
+  // Preserve the original tag key for byte-exact roundtrip of decoded tokens
+  let tagKey: string | undefined;
 
   for (const [key, value] of payloadIpld) {
     if (key === "h") {
@@ -71,6 +77,7 @@ export function envelopeFromIpld<V extends Verify<any>, T>(
     }
     sawPayload = true;
     payloadValue = value;
+    tagKey = key;
   }
 
   if (headerBytes === undefined) {
@@ -87,6 +94,7 @@ export function envelopeFromIpld<V extends Verify<any>, T>(
     payload: {
       header,
       payload: ipldToPayload(payloadValue!),
+      tag: tagKey,
     },
   };
 }

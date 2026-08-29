@@ -36,19 +36,23 @@ export interface InvocationPayload<D extends Did = Did> {
 }
 
 export function invocationPayloadToIpld<D extends Did>(p: InvocationPayload<D>): Ipld {
-  return new Map<string, Ipld>([
+  // Spec §Audience: omit aud when same as sub
+  const entries: [string, Ipld][] = [
     ["iss", p.issuer.toString()],
-    ["aud", p.audience.toString()],
     ["sub", p.subject.toString()],
     ["cmd", p.command.toString()],
-    ["arg", mapToIpld(p.arguments, promisedToWireIpld)],
+    ["args", mapToIpld(p.arguments, promisedToWireIpld)],
     ["prf", p.proofs],
     ["cause", p.cause],
     ["iat", p.issuedAt === null ? null : p.issuedAt.toIpld()],
     ["exp", p.expiration === null ? null : p.expiration.toIpld()],
     ["meta", p.meta],
     ["nonce", p.nonce.toIpld()],
-  ]);
+  ];
+  if (!p.audience.equals(p.subject)) {
+    entries.splice(1, 0, ["aud", p.audience.toString()]);
+  }
+  return new Map<string, Ipld>(entries);
 }
 
 export function ipldToInvocationPayload<D extends Did>(i: Ipld): InvocationPayload<D> {
@@ -90,9 +94,9 @@ export function ipldToInvocationPayload<D extends Did>(i: Ipld): InvocationPaylo
         if (typeof value !== "string") throw new Error("expected cmd to be a string");
         command = Command.parse(value);
         break;
-      case "arg":
-        if (argumentsValue !== undefined) throw new Error("duplicate field arg");
-        if (!(value instanceof Map)) throw new Error("expected arg to be a map");
+      case "args":
+        if (argumentsValue !== undefined) throw new Error("duplicate field args");
+        if (!(value instanceof Map)) throw new Error("expected args to be a map");
         argumentsValue = mapToValue(value, wireIpldToPromised);
         break;
       case "prf":
@@ -137,10 +141,13 @@ export function ipldToInvocationPayload<D extends Did>(i: Ipld): InvocationPaylo
   }
 
   if (issuer === undefined) throw new Error("missing field iss");
-  if (audience === undefined) throw new Error("missing field aud");
   if (subject === undefined) throw new Error("missing field sub");
+  // Spec §Audience: if aud is omitted it is implicitly equal to sub
+  if (audience === undefined) {
+    audience = subject;
+  }
   if (command === undefined) throw new Error("missing field cmd");
-  if (argumentsValue === undefined) throw new Error("missing field arg");
+  if (argumentsValue === undefined) throw new Error("missing field args");
   if (proofs === undefined) throw new Error("missing field prf");
   if (meta === undefined) throw new Error("missing field meta");
   if (nonce === undefined) throw new Error("missing field nonce");
@@ -231,9 +238,12 @@ export function syntaticChecks<D extends Did>(payload: InvocationPayload<D>, pro
   }
 }
 
+/**
+ * Spec §Type Tag: "The UCAN envelope's payload tag MUST be ucan/inv@1.0.0"
+ */
 export const invocationPayloadTag: PayloadTag = {
   specId: "inv",
-  version: "1.0.0-rc.1",
+  version: "1.0.0",
 };
 
 export class CheckFailed extends Error {

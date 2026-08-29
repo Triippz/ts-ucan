@@ -82,7 +82,7 @@ describe("Delegation", () => {
     const parsed = ipldFromDagCbor(bytes);
 
     // The envelope is a 2-tuple [signature, envelopePayload]
-    // The envelopePayload map has: {"h": varsigHeader, "ucan/dlg@1.0.0-rc.1": delegationPayloadMap}
+    // The envelopePayload map has: {"h": varsigHeader, "ucan/dlg@1.0.0": delegationPayloadMap}
     if (Array.isArray(parsed) && parsed.length === 2) {
       const envelopePayload = parsed[1];
       if (envelopePayload instanceof Map) {
