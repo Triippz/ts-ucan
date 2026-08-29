@@ -209,3 +209,23 @@ describe("Invocation", () => {
     expect(() => Invocation.decode(mutated)).toThrow("aud must be omitted when equal to sub");
   });
 });
+
+describe("time bounds", () => {
+  it("timeBoundChecks_rejects_expired_proof_and_invocation", async () => {
+    const { timeBoundChecks, CheckFailed } = await import("../src/invocation/index.js");
+    const { Timestamp } = await import("../src/time/index.js");
+    const now = Timestamp.fromUnix(1000);
+    const past = Timestamp.fromUnix(1);
+    const future = Timestamp.fromUnix(2000);
+    const payload = { expiration: past } as never;
+    expect(() => timeBoundChecks(payload, [], now)).toThrowError(CheckFailed);
+    const okPayload = { expiration: future } as never;
+    expect(() => timeBoundChecks(okPayload, [], now)).not.toThrow();
+    const expiredProof = { notBefore: null, expiration: past } as never;
+    expect(() => timeBoundChecks(okPayload, [expiredProof], now)).toThrowError(CheckFailed);
+    const notYetProof = { notBefore: future, expiration: null } as never;
+    expect(() => timeBoundChecks(okPayload, [notYetProof], now)).toThrowError(CheckFailed);
+    const validProof = { notBefore: past, expiration: future } as never;
+    expect(() => timeBoundChecks(okPayload, [validProof], now)).not.toThrow();
+  });
+});

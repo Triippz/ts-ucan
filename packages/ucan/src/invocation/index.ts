@@ -180,7 +180,7 @@ export function invocationPayloadToCid<D extends Did>(p: InvocationPayload<D>): 
   return toDagCborCid(invocationPayloadToIpld(p));
 }
 
-export async function check<D extends Did>(payload: InvocationPayload<D>, store: DelegationStore<D>): Promise<void> {
+export async function check<D extends Did>(payload: InvocationPayload<D>, store: DelegationStore<D>, now: Timestamp = Timestamp.now()): Promise<void> {
   let realizedProofs: Delegation<D>[];
   try {
     realizedProofs = await store.getAll(payload.proofs);
@@ -189,12 +189,32 @@ export async function check<D extends Did>(payload: InvocationPayload<D>, store:
   }
 
   try {
+    timeBoundChecks(payload, realizedProofs, now);
     syntaticChecks(payload, realizedProofs);
   } catch (error) {
     if (error instanceof CheckFailed) {
       throw new StoredCheckError("checkFailed", error);
     }
     throw error;
+  }
+}
+
+/**
+ * Time-bounds validation per the delegation spec's Token Validation section:
+ * a proof is invalid before its `nbf` or after its `exp`; the invocation's own
+ * `exp` must also not have passed. All proofs must be valid at execution time.
+ */
+export function timeBoundChecks<D extends Did>(payload: InvocationPayload<D>, proofs: Iterable<Delegation<D>>, now: Timestamp = Timestamp.now()): void {
+  if (payload.expiration !== null && payload.expiration.compare(now) < 0) {
+    throw new CheckFailed("invocationExpired", payload.expiration);
+  }
+  for (const proof of proofs) {
+    if (proof.notBefore !== null && proof.notBefore.compare(now) > 0) {
+      throw new CheckFailed("proofNotYetValid", proof);
+    }
+    if (proof.expiration !== null && proof.expiration.compare(now) < 0) {
+      throw new CheckFailed("proofExpired", proof);
+    }
   }
 }
 
@@ -256,7 +276,10 @@ export class CheckFailed extends Error {
       | "predicateFailed"
       | "invalidProofIssuerChain"
       | "subjectNotAllowedByProof"
-      | "rootProofIssuerIsNotSubject",
+      | "rootProofIssuerIsNotSubject"
+      | "invocationExpired"
+      | "proofNotYetValid"
+      | "proofExpired",
     readonly detail?: unknown,
   ) {
     super(reason);

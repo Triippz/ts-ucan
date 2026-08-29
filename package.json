@@ -15,7 +15,8 @@
     "build": "tsc -p packages/varsig && tsc -p packages/ucan",
     "test": "npm --workspace=@marktripoli/varsig test && npm --workspace=@marktripoli/ucan test",
     "prepare": "git config core.hooksPath .githooks",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "examples": "for f in examples/0*.ts; do node \"$f\" || exit 1; done"
   },
   "private": true,
   "workspaces": [

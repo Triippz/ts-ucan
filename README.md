@@ -68,6 +68,12 @@ npm test
 
 Runs the unit suites for both packages plus the delegation and policy conformance fixtures.
 
+## Examples
+See `examples/` for runnable end-to-end scripts covering delegation, policy, revocation, HTTP, and container transport.
+Prereq: `npm install && npm run build`.
+Run them all with `npm run examples`.
+Each file also runs directly with `node examples/<file>.ts`.
+
 ## License
 
 [Apache-2.0](LICENSE)
