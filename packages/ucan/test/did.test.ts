@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import {
   Ed25519Did,
   Ed25519DidFromStrError,
+  Ed25519Signer,
   type Ed25519DidFromStrErrorReason,
 } from "../src/did.js";
 
@@ -63,5 +64,17 @@ describe("Ed25519Did", () => {
 
   it("roundtrips_valid_fixture", () => {
     expect(Ed25519Did.fromString(FIXTURE).toString()).toBe(FIXTURE);
+  });
+
+  it("rejects_invalid_constructor_point", () => {
+    const bytes = new Uint8Array(32);
+    bytes.set(Buffer.from("27b25ebe1f27ddf0710325e0d4e9f8423d2e556ad98149fcf2e6c50c9c736fd0", "hex"));
+    expect(() => new Ed25519Did(bytes)).toThrow();
+  });
+
+  it("serializes_signer_as_its_did", () => {
+    const secretKey = new Uint8Array(32).fill(0);
+    const signer = new Ed25519Signer(secretKey);
+    expect(signer.toIpld()).toBe(signer.toString());
   });
 });

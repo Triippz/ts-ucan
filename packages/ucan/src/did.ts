@@ -40,6 +40,7 @@ export class Ed25519Did implements Did<Ed25519> {
     if (publicKey.length !== 32) {
       throw new Error("Ed25519 public key must be 32 bytes");
     }
+    ed25519.Point.fromBytes(publicKey, true);
     this.publicKey = publicKey;
     this.varsigConfig = new Ed25519();
   }
@@ -146,7 +147,7 @@ export class Ed25519DidFromStrError extends Error {
   constructor(readonly reason: Ed25519DidFromStrErrorReason) {
     const messages: Record<Ed25519DidFromStrErrorReason, string> = {
       invalidDidHeader: "invalid did header",
-      missingBase58Prefix: "missing base58 prefix",
+      missingBase58Prefix: "missing base58 prefix 'z'",
       invalidBase58: "invalid base58 encoding",
       invalidKey: "invalid key bytes",
     };
@@ -175,6 +176,13 @@ export class Ed25519Signer implements DidSigner<Ed25519Did> {
    */
   toString(): string {
     return this.did.toString();
+  }
+
+  /**
+   * Convert to IPLD / serialization form.
+   */
+  toIpld(): Ipld {
+    return this.did.toIpld();
   }
 }
 

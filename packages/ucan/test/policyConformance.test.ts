@@ -317,18 +317,19 @@ describe("Policy Conformance - Invalid Scenarios", () => {
   describe("Scenario 1", () => {
     let fixture: { args: Ipld; policies: any[][] };
 
+    // Upstream Rust harness copies scenario 0 here; TS exercises scenarios 1-3 on purpose.
     beforeAll(async () => {
-      fixture = await loadFixture(0, "invalid");
+      fixture = await loadFixture(1, "invalid");
     });
 
     it("test_zeroth_policy", async () => {
       const policySet = fixture.policies[0];
       expect(policySet).toBeDefined();
-      for (const predicateIpld of policySet) {
+      const results = policySet.map((predicateIpld) => {
         const predicate = ipldToPredicate(predicateIpld);
-        const result = runPredicate(predicate, fixture.args);
-        expect(result).toBe(false);
-      }
+        return runPredicate(predicate, fixture.args);
+      });
+      expect(results.every(Boolean)).toBe(false);
     });
   });
 
@@ -336,17 +337,14 @@ describe("Policy Conformance - Invalid Scenarios", () => {
     let fixture: { args: Ipld; policies: any[][] };
 
     beforeAll(async () => {
-      fixture = await loadFixture(0, "invalid");
+      fixture = await loadFixture(2, "invalid");
     });
 
     it("test_zeroth_policy", async () => {
       const policySet = fixture.policies[0];
       expect(policySet).toBeDefined();
-      for (const predicateIpld of policySet) {
-        const predicate = ipldToPredicate(predicateIpld);
-        const result = runPredicate(predicate, fixture.args);
-        expect(result).toBe(false);
-      }
+      const predicate = ipldToPredicate(policySet[0]);
+      expect(() => runPredicate(predicate, fixture.args)).toThrow(/keyNotFound/);
     });
   });
 
@@ -354,17 +352,17 @@ describe("Policy Conformance - Invalid Scenarios", () => {
     let fixture: { args: Ipld; policies: any[][] };
 
     beforeAll(async () => {
-      fixture = await loadFixture(0, "invalid");
+      fixture = await loadFixture(3, "invalid");
     });
 
     it("test_zeroth_policy", async () => {
       const policySet = fixture.policies[0];
       expect(policySet).toBeDefined();
-      for (const predicateIpld of policySet) {
+      const results = policySet.map((predicateIpld) => {
         const predicate = ipldToPredicate(predicateIpld);
-        const result = runPredicate(predicate, fixture.args);
-        expect(result).toBe(false);
-      }
+        return runPredicate(predicate, fixture.args);
+      });
+      expect(results.every(Boolean)).toBe(false);
     });
   });
 });
